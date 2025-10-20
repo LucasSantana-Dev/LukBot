@@ -74,7 +74,7 @@
         "play-dl": "^1.9.7",
         "prettier": "^3.6.2",
         "uuid": "^13.0.0",
-        "youtubei.js": "^15.0.1"
+        "youtubei.js": "^16.0.1"
     },
     "devDependencies": {
         "@commitlint/cli": "^19.8.1",
