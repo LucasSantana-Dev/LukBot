@@ -46,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Autoplay queue replenishment now searches and enqueues a related track when queue is empty
 - Deploy workflow now retries webhook calls with `/webhook/deploy` after HTTP 405
 - Deploy workflow webhook retry now also handles HTTP 404 fallback responses
+- Deploy webhook trigger now retries transient 5xx/network responses before failing
 - Deploy workflow now includes a post-rollout OAuth smoke gate on `/api/health/auth-config` and fails on warning/legacy-domain states
 - Deploy script now restarts Cloudflare tunnel (`cloudflared`) during rollout
 - Deploy script now prevents concurrent runs with a lock to avoid overlapping container rollouts

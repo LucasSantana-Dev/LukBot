@@ -45,20 +45,43 @@ jobs:
                       "$url"
                   }
 
-                  response=$(call_webhook "$WEBHOOK_URL")
+                  call_webhook_with_retry() {
+                    local url="$1"
+                    local attempt http body response
+                    for attempt in $(seq 1 5); do
+                      response=$(call_webhook "$url")
+                      http=$(echo "$response" | tail -1)
+                      body=$(echo "$response" | sed '$d')
+                      echo "Response from $url (attempt $attempt/5): $body (HTTP $http)"
+
+                      if [ "$http" -ge 200 ] && [ "$http" -lt 300 ]; then
+                        echo "$response"
+                        return 0
+                      fi
+
+                      if [ "$http" -ge 500 ] || [ "$http" = "000" ]; then
+                        if [ "$attempt" -lt 5 ]; then
+                          sleep $((attempt * 2))
+                          continue
+                        fi
+                      fi
+
+                      echo "$response"
+                      return 0
+                    done
+                  }
+
+                  response=$(call_webhook_with_retry "$WEBHOOK_URL")
 
                   http_code=$(echo "$response" | tail -1)
                   body=$(echo "$response" | sed '$d')
 
-                  echo "Response from $WEBHOOK_URL: $body (HTTP $http_code)"
-
                   retry_url="${WEBHOOK_URL%/}/webhook/deploy"
                   if [ "$WEBHOOK_URL" != "$retry_url" ] && { [ "$http_code" = "404" ] || [ "$http_code" = "405" ]; }; then
                     echo "==> Retrying with canonical webhook path: $retry_url"
-                    response=$(call_webhook "$retry_url")
+                    response=$(call_webhook_with_retry "$retry_url")
                     http_code=$(echo "$response" | tail -1)
                     body=$(echo "$response" | sed '$d')
-                    echo "Response from $retry_url: $body (HTTP $http_code)"
                   fi
 
                   if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
