@@ -52,6 +52,7 @@ packages/
 ### Bot
 - Multi-platform music (YouTube, Spotify) with queue, shuffle, repeat, lyrics, autoplay
 - Dynamic Discord presence rotation with live guild/member/session stats and command CTA
+- Autoplay recommendations use anti-repeat filtering with queue buffering so shuffle stays useful during autoplay
 - Now-playing card updates in place to avoid channel spam on track changes
 - Video/audio downloads with format selection and progress tracking
 - Moderation: warn, mute, kick, ban with case tracking
