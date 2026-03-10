@@ -34,6 +34,8 @@ type ConnectRedisClient = {
 }
 
 type RedisStoreClient = ConstructorParameters<typeof RedisStore>[0]['client']
+type SessionMethodName = 'get' | 'set' | 'destroy' | 'touch'
+type SessionCallback = (error?: unknown, data?: unknown) => void
 
 async function* scanWithIoredis(
     client: Redis,
@@ -87,6 +89,117 @@ export function createConnectRedisClientAdapter(
     }
 }
 
+class ResilientSessionStore extends session.Store {
+    private fallbackActive = false
+
+    constructor(
+        private readonly primaryStore: session.Store,
+        private readonly fallbackStore: session.Store,
+    ) {
+        super()
+    }
+
+    private activateFallback(error: unknown): void {
+        if (this.fallbackActive) {
+            return
+        }
+
+        this.fallbackActive = true
+        errorLog({
+            message:
+                'Redis session store unavailable. Switching to local fallback store.',
+            error,
+        })
+    }
+
+    private invokeStoreMethod(
+        store: session.Store,
+        methodName: SessionMethodName,
+        args: unknown[],
+        callback: SessionCallback,
+    ): void {
+        const storeMethod = (store as unknown as Record<string, unknown>)[
+            methodName
+        ]
+
+        if (typeof storeMethod !== 'function') {
+            callback()
+            return
+        }
+
+        try {
+            ;(storeMethod as (...params: unknown[]) => void).call(
+                store,
+                ...args,
+                callback,
+            )
+        } catch (error) {
+            callback(error)
+        }
+    }
+
+    private execute(
+        methodName: SessionMethodName,
+        args: unknown[],
+        callback: SessionCallback,
+    ): void {
+        if (this.fallbackActive) {
+            this.invokeStoreMethod(this.fallbackStore, methodName, args, callback)
+            return
+        }
+
+        this.invokeStoreMethod(
+            this.primaryStore,
+            methodName,
+            args,
+            (error, data) => {
+                if (!error) {
+                    callback(undefined, data)
+                    return
+                }
+
+                this.activateFallback(error)
+                this.invokeStoreMethod(
+                    this.fallbackStore,
+                    methodName,
+                    args,
+                    callback,
+                )
+            },
+        )
+    }
+
+    get(
+        sid: string,
+        callback: (error?: unknown, sessionData?: session.SessionData | null) => void,
+    ): void {
+        this.execute('get', [sid], callback as SessionCallback)
+    }
+
+    set(
+        sid: string,
+        sessionData: session.SessionData,
+        callback: (error?: unknown) => void = () => {},
+    ): void {
+        this.execute('set', [sid, sessionData], callback as SessionCallback)
+    }
+
+    destroy(
+        sid: string,
+        callback: (error?: unknown) => void = () => {},
+    ): void {
+        this.execute('destroy', [sid], callback as SessionCallback)
+    }
+
+    touch(
+        sid: string,
+        sessionData: session.SessionData,
+        callback: () => void = () => {},
+    ): void {
+        this.execute('touch', [sid, sessionData], callback as SessionCallback)
+    }
+}
+
 function createRedisStore(): session.Store | undefined {
     const host = process.env.REDIS_HOST || 'localhost'
     const port = Number(process.env.REDIS_PORT) || 6379
@@ -97,16 +210,22 @@ function createRedisStore(): session.Store | undefined {
             host,
             port,
             password,
-            lazyConnect: true,
-            maxRetriesPerRequest: 3,
+            lazyConnect: false,
+            enableOfflineQueue: false,
+            connectTimeout: 1500,
+            maxRetriesPerRequest: 1,
             retryStrategy: (times) =>
-                times > 3 ? null : Math.min(times * 200, 2000),
+                times > 1 ? null : Math.min(times * 200, 1000),
         })
 
-        client.connect().catch(() => {
+        client.on('error', () => {
             debugLog({
-                message: 'Redis not available, session store will degrade',
+                message:
+                    'Redis session client unavailable. Local fallback will be used on errors.',
             })
+        })
+        client.on('ready', () => {
+            debugLog({ message: 'Redis session client connected' })
         })
 
         const storeClient = createConnectRedisClientAdapter(client)
@@ -114,7 +233,12 @@ function createRedisStore(): session.Store | undefined {
             client: storeClient as unknown as RedisStoreClient,
             prefix: 'lucky:sess:',
         })
-    } catch {
+    } catch (error) {
+        debugLog({
+            message:
+                'Redis session store initialization failed. Using local session store.',
+            error,
+        })
         return undefined
     }
 }
@@ -136,6 +260,15 @@ function createFileStore(sessionPath: string): session.Store | undefined {
     }
 }
 
+function createLocalFallbackStore(sessionPath: string): session.Store {
+    const fileStore = createFileStore(sessionPath)
+    if (fileStore) {
+        return fileStore
+    }
+
+    return new session.MemoryStore()
+}
+
 export function setupSessionMiddleware(app: Express): void {
     const sessionSecret = process.env.WEBAPP_SESSION_SECRET
 
@@ -148,25 +281,31 @@ export function setupSessionMiddleware(app: Express): void {
 
     const isProduction = process.env.NODE_ENV === 'production'
     const sessionPath = join(process.cwd(), '.data', 'sessions')
+    const fallbackStore = createLocalFallbackStore(sessionPath)
+    const redisStore = createRedisStore()
+    const store = redisStore
+        ? new ResilientSessionStore(redisStore, fallbackStore)
+        : fallbackStore
 
-    const store = createRedisStore() ?? createFileStore(sessionPath)
-
-    const storeType =
-        store instanceof RedisStore
-            ? 'Redis'
-            : store
-              ? 'file-based'
-              : 'in-memory'
+    const isMemoryFallback = fallbackStore.constructor.name === 'MemoryStore'
+    const storeType = redisStore
+        ? isMemoryFallback
+            ? 'Redis with in-memory fallback'
+            : 'Redis with file fallback'
+        : isMemoryFallback
+          ? 'in-memory'
+          : 'file-based'
 
     debugLog({ message: `Using ${storeType} session store` })
 
     app.use(
         session({
-            ...(store ? { store } : {}),
+            store,
             secret: sessionSecret ?? 'default-secret-change-in-production',
             resave: false,
             saveUninitialized: false,
             name: 'sessionId',
+            proxy: isProduction,
             cookie: {
                 secure: isProduction,
                 httpOnly: true,

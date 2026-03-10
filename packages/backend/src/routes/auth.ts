@@ -67,6 +67,7 @@ export function setupAuthRoutes(app: Express): void {
     )
 
     app.get('/api/auth/callback', handleOAuthCallback)
+    app.get('/auth/callback', handleOAuthCallback)
 
     app.get(
         '/api/auth/logout',

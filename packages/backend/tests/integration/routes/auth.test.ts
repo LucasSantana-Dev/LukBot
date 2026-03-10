@@ -78,6 +78,30 @@ describe('Auth Routes Integration', () => {
             }
         })
 
+        test('should use canonical API callback in production when env is unset', async () => {
+            const originalRedirectUri = process.env.WEBAPP_REDIRECT_URI
+            const originalNodeEnv = process.env.NODE_ENV
+            delete process.env.WEBAPP_REDIRECT_URI
+            process.env.NODE_ENV = 'production'
+
+            const response = await request(app)
+                .get('/api/auth/discord')
+                .set('x-forwarded-proto', 'https')
+                .set('x-forwarded-host', 'lucky.lucassantana.tech')
+                .expect(302)
+
+            expect(response.headers.location).toContain(
+                encodeURIComponent(
+                    'https://lucky-api.lucassantana.tech/api/auth/callback',
+                ),
+            )
+
+            if (originalRedirectUri) {
+                process.env.WEBAPP_REDIRECT_URI = originalRedirectUri
+            }
+            process.env.NODE_ENV = originalNodeEnv
+        })
+
         test('should return 500 when CLIENT_ID is missing', async () => {
             const originalClientId = process.env.CLIENT_ID
             delete process.env.CLIENT_ID
@@ -204,6 +228,36 @@ describe('Auth Routes Integration', () => {
                 .expect(302)
 
             expect(response.headers.location).toContain('error=session_failed')
+        })
+    })
+
+    describe('GET /auth/callback', () => {
+        test('should handle successful OAuth callback through alias', async () => {
+            const mockDiscordOAuth = discordOAuthService as jest.Mocked<
+                typeof discordOAuthService
+            >
+            mockDiscordOAuth.exchangeCodeForToken.mockResolvedValue(
+                MOCK_TOKEN_RESPONSE,
+            )
+            mockDiscordOAuth.getUserInfo.mockResolvedValue(MOCK_DISCORD_USER)
+
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.setSession.mockResolvedValue()
+
+            const response = await request(app)
+                .get('/auth/callback')
+                .query({ code: MOCK_AUTH_CODE })
+                .set('Cookie', ['sessionId=callback_session_id'])
+                .expect(302)
+
+            expect(response.headers.location).toContain('authenticated=true')
+            expect(mockDiscordOAuth.exchangeCodeForToken).toHaveBeenCalledWith(
+                MOCK_AUTH_CODE,
+                expect.stringContaining('/api/auth/callback'),
+            )
+            expect(mockSessionService.setSession).toHaveBeenCalled()
         })
     })
 

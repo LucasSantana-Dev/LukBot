@@ -52,6 +52,7 @@ packages/
 ### Bot
 - Multi-platform music (YouTube, Spotify) with queue, shuffle, repeat, lyrics, autoplay
 - Dynamic Discord presence rotation with live guild/member/session stats and command CTA
+- Autoplay recommendations use anti-repeat filtering with queue buffering so shuffle stays useful during autoplay
 - Now-playing card updates in place to avoid channel spam on track changes
 - Video/audio downloads with format selection and progress tracking
 - Moderation: warn, mute, kick, ban with case tracking
@@ -137,7 +138,8 @@ When `WEBAPP_FRONTEND_URL` includes multiple origins, use comma-separated values
 (example: `https://lucky.lucassantana.tech,https://lukbot.vercel.app`); backend CORS
 accepts all configured entries while OAuth/Last.fm redirects use the first origin.
 Set `WEBAPP_REDIRECT_URI` to the exact Discord OAuth callback URL registered in the
-Discord Developer Portal (example: `https://lucky.lucassantana.tech/api/auth/callback`).
+Discord Developer Portal (example:
+`https://lucky-api.lucassantana.tech/api/auth/callback`).
 
 ## Environment Variables
 
@@ -151,7 +153,7 @@ See `.env.example` for all available options. Key variables:
 | `REDIS_HOST` | No | Redis host (default: localhost) |
 | `WEBAPP_ENABLED` | No | Enable web dashboard (default: false) |
 | `WEBAPP_SESSION_SECRET` | No | Session encryption key |
-| `WEBAPP_REDIRECT_URI` | No | Explicit Discord OAuth callback URL (must match Discord app settings) |
+| `WEBAPP_REDIRECT_URI` | No | Explicit Discord OAuth callback URL (for split domains use API host, e.g. `https://lucky-api.lucassantana.tech/api/auth/callback`) |
 | `CLIENT_SECRET` | No | Discord OAuth secret (for dashboard) |
 | `SENTRY_DSN` | No | Error tracking |
 
