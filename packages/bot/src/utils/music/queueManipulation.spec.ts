@@ -6,6 +6,15 @@ jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
 }))
 
+const dislikedTrackKeysMock = jest.fn()
+
+jest.mock('../../services/musicRecommendation/feedbackService', () => ({
+    recommendationFeedbackService: {
+        getDislikedTrackKeys: (...args: unknown[]) =>
+            dislikedTrackKeysMock(...args),
+    },
+}))
+
 type QueueMock = Partial<GuildQueue> & {
     player: { search: jest.Mock }
     addTrack: jest.Mock
@@ -43,6 +52,10 @@ function createQueueMock(overrides: Partial<QueueMock> = {}): QueueMock {
 }
 
 describe('queueManipulation.replenishQueue', () => {
+    beforeEach(() => {
+        dislikedTrackKeysMock.mockResolvedValue(new Set())
+    })
+
     it('tops up autoplay queue with multiple tracks when below buffer', async () => {
         const queue = createQueueMock({
             tracks: {
@@ -87,6 +100,14 @@ describe('queueManipulation.replenishQueue', () => {
 
         expect(queue.player.search).toHaveBeenCalled()
         expect(queue.addTrack).toHaveBeenCalledTimes(3)
+        expect(queue.addTrack).toHaveBeenCalledWith(
+            expect.objectContaining({
+                metadata: expect.objectContaining({
+                    isAutoplay: true,
+                    recommendationReason: expect.any(String),
+                }),
+            }),
+        )
     })
 
     it('does not search when queue already has buffer size', async () => {
@@ -147,7 +168,48 @@ describe('queueManipulation.replenishQueue', () => {
         expect(queue.addTrack).toHaveBeenCalledWith(
             expect.objectContaining({
                 url: 'https://example.com/fresh',
-                metadata: expect.objectContaining({ isAutoplay: true }),
+                metadata: expect.objectContaining({
+                    isAutoplay: true,
+                    recommendationReason: expect.any(String),
+                }),
+            }),
+        )
+    })
+
+    it('skips tracks disliked by the requester feedback profile', async () => {
+        dislikedTrackKeysMock.mockResolvedValue(
+            new Set(['dislikedtrack::artistb']),
+        )
+
+        const queue = createQueueMock({
+            tracks: {
+                size: 0,
+                toArray: jest.fn().mockReturnValue([]),
+            },
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            title: 'Disliked Track',
+                            author: 'Artist B',
+                            url: 'https://example.com/disliked',
+                        },
+                        {
+                            title: 'Allowed Track',
+                            author: 'Artist C',
+                            url: 'https://example.com/allowed',
+                        },
+                    ],
+                }),
+            },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(queue.addTrack).toHaveBeenCalledTimes(1)
+        expect(queue.addTrack).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: 'https://example.com/allowed',
             }),
         )
     })
