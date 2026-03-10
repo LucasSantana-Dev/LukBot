@@ -31,7 +31,10 @@ jobs:
               run: npm run build:shared
 
             - name: Lint code
-              run: npm run lint
+              run: |
+                  npm run lint
+                  npm run lint --workspace=packages/frontend
+                  npm run lint --workspace=packages/backend
 
             - name: Type check
               run: npm run type:check
