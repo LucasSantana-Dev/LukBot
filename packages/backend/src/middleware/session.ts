@@ -288,13 +288,14 @@ export function setupSessionMiddleware(app: Express): void {
         : fallbackStore
 
     const isMemoryFallback = fallbackStore.constructor.name === 'MemoryStore'
-    const storeType = redisStore
-        ? isMemoryFallback
+    let storeType = 'file-based'
+    if (redisStore) {
+        storeType = isMemoryFallback
             ? 'Redis with in-memory fallback'
             : 'Redis with file fallback'
-        : isMemoryFallback
-          ? 'in-memory'
-          : 'file-based'
+    } else if (isMemoryFallback) {
+        storeType = 'in-memory'
+    }
 
     debugLog({ message: `Using ${storeType} session store` })
 

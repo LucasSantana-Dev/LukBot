@@ -21,10 +21,20 @@ const browserLocation =
         ? globalThis.window.location
         : undefined
 
+function removeTrailingSlashes(value: string): string {
+    let result = value
+    while (result.length > 1 && result.endsWith('/')) {
+        result = result.slice(0, -1)
+    }
+    return result
+}
+
 const API_BASE = inferApiBase(
     import.meta.env.VITE_API_BASE_URL,
     browserLocation,
-).replace(/\/+$/, '')
+)
+
+const NORMALIZED_API_BASE = removeTrailingSlashes(API_BASE)
 
 interface BackendGuild {
     id: string
@@ -51,7 +61,7 @@ const mapGuild = (backendGuild: BackendGuild): Guild => {
 }
 
 const apiClient: AxiosInstance = axios.create({
-    baseURL: API_BASE,
+    baseURL: NORMALIZED_API_BASE,
     withCredentials: true,
     timeout: 10000,
     headers: {
@@ -102,7 +112,7 @@ export const api = {
             }
         },
         logout: () => apiClient.get<{ success: boolean }>('/auth/logout'),
-        getDiscordLoginUrl: () => `${API_BASE}/auth/discord`,
+        getDiscordLoginUrl: () => `${NORMALIZED_API_BASE}/auth/discord`,
     },
 
     guilds: {

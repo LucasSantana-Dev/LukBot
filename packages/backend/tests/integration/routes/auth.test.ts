@@ -31,6 +31,23 @@ jest.mock('../../../src/services/DiscordOAuthService', () => ({
 describe('Auth Routes Integration', () => {
     let app: express.Express
 
+    const getDiscordOAuthMock = () =>
+        discordOAuthService as jest.Mocked<typeof discordOAuthService>
+
+    const getSessionServiceMock = () =>
+        sessionService as jest.Mocked<typeof sessionService>
+
+    function mockSuccessfulOAuthFlow(): void {
+        const mockDiscordOAuth = getDiscordOAuthMock()
+        const mockSessionService = getSessionServiceMock()
+
+        mockDiscordOAuth.exchangeCodeForToken.mockResolvedValue(
+            MOCK_TOKEN_RESPONSE,
+        )
+        mockDiscordOAuth.getUserInfo.mockResolvedValue(MOCK_DISCORD_USER)
+        mockSessionService.setSession.mockResolvedValue()
+    }
+
     beforeEach(() => {
         app = express()
         setupSessionMiddleware(app)
@@ -61,20 +78,22 @@ describe('Auth Routes Integration', () => {
             const originalRedirectUri = process.env.WEBAPP_REDIRECT_URI
             delete process.env.WEBAPP_REDIRECT_URI
 
-            const response = await request(app)
-                .get('/api/auth/discord')
-                .set('x-forwarded-proto', 'https')
-                .set('x-forwarded-host', 'lucky.lucassantana.tech')
-                .expect(302)
+            try {
+                const response = await request(app)
+                    .get('/api/auth/discord')
+                    .set('x-forwarded-proto', 'https')
+                    .set('x-forwarded-host', 'lucky.lucassantana.tech')
+                    .expect(302)
 
-            expect(response.headers.location).toContain(
-                encodeURIComponent(
-                    'https://lucky.lucassantana.tech/api/auth/callback',
-                ),
-            )
-
-            if (originalRedirectUri) {
-                process.env.WEBAPP_REDIRECT_URI = originalRedirectUri
+                expect(response.headers.location).toContain(
+                    encodeURIComponent(
+                        'https://lucky.lucassantana.tech/api/auth/callback',
+                    ),
+                )
+            } finally {
+                if (originalRedirectUri) {
+                    process.env.WEBAPP_REDIRECT_URI = originalRedirectUri
+                }
             }
         })
 
@@ -84,22 +103,24 @@ describe('Auth Routes Integration', () => {
             delete process.env.WEBAPP_REDIRECT_URI
             process.env.NODE_ENV = 'production'
 
-            const response = await request(app)
-                .get('/api/auth/discord')
-                .set('x-forwarded-proto', 'https')
-                .set('x-forwarded-host', 'lucky.lucassantana.tech')
-                .expect(302)
+            try {
+                const response = await request(app)
+                    .get('/api/auth/discord')
+                    .set('x-forwarded-proto', 'https')
+                    .set('x-forwarded-host', 'lucky.lucassantana.tech')
+                    .expect(302)
 
-            expect(response.headers.location).toContain(
-                encodeURIComponent(
-                    'https://lucky-api.lucassantana.tech/api/auth/callback',
-                ),
-            )
-
-            if (originalRedirectUri) {
-                process.env.WEBAPP_REDIRECT_URI = originalRedirectUri
+                expect(response.headers.location).toContain(
+                    encodeURIComponent(
+                        'https://lucky-api.lucassantana.tech/api/auth/callback',
+                    ),
+                )
+            } finally {
+                if (originalRedirectUri) {
+                    process.env.WEBAPP_REDIRECT_URI = originalRedirectUri
+                }
+                process.env.NODE_ENV = originalNodeEnv
             }
-            process.env.NODE_ENV = originalNodeEnv
         })
 
         test('should return 500 when CLIENT_ID is missing', async () => {
@@ -125,18 +146,7 @@ describe('Auth Routes Integration', () => {
             const originalRedirectUri = process.env.WEBAPP_REDIRECT_URI
             delete process.env.WEBAPP_REDIRECT_URI
 
-            const mockDiscordOAuth = discordOAuthService as jest.Mocked<
-                typeof discordOAuthService
-            >
-            mockDiscordOAuth.exchangeCodeForToken.mockResolvedValue(
-                MOCK_TOKEN_RESPONSE,
-            )
-            mockDiscordOAuth.getUserInfo.mockResolvedValue(MOCK_DISCORD_USER)
-
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.setSession.mockResolvedValue()
+            mockSuccessfulOAuthFlow()
 
             await request(app)
                 .get('/api/auth/callback')
@@ -145,7 +155,7 @@ describe('Auth Routes Integration', () => {
                 .set('x-forwarded-host', 'lucky.lucassantana.tech')
                 .expect(302)
 
-            expect(mockDiscordOAuth.exchangeCodeForToken).toHaveBeenCalledWith(
+            expect(getDiscordOAuthMock().exchangeCodeForToken).toHaveBeenCalledWith(
                 MOCK_AUTH_CODE,
                 'https://lucky.lucassantana.tech/api/auth/callback',
             )
@@ -155,36 +165,30 @@ describe('Auth Routes Integration', () => {
             }
         })
 
-        test('should handle successful OAuth callback', async () => {
-            const mockDiscordOAuth = discordOAuthService as jest.Mocked<
-                typeof discordOAuthService
-            >
-            mockDiscordOAuth.exchangeCodeForToken.mockResolvedValue(
-                MOCK_TOKEN_RESPONSE,
-            )
-            mockDiscordOAuth.getUserInfo.mockResolvedValue(MOCK_DISCORD_USER)
+        test.each(['/api/auth/callback', '/auth/callback'])(
+            'should handle successful OAuth callback for %s',
+            async (routePath) => {
+                mockSuccessfulOAuthFlow()
 
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.setSession.mockResolvedValue()
+                const response = await request(app)
+                    .get(routePath)
+                    .query({ code: MOCK_AUTH_CODE })
+                    .set('Cookie', ['sessionId=callback_session_id'])
+                    .expect(302)
 
-            const response = await request(app)
-                .get('/api/auth/callback')
-                .query({ code: MOCK_AUTH_CODE })
-                .set('Cookie', ['sessionId=callback_session_id'])
-                .expect(302)
-
-            expect(response.headers.location).toContain('authenticated=true')
-            expect(mockDiscordOAuth.exchangeCodeForToken).toHaveBeenCalledWith(
-                MOCK_AUTH_CODE,
-                expect.stringContaining('/api/auth/callback'),
-            )
-            expect(mockDiscordOAuth.getUserInfo).toHaveBeenCalledWith(
-                MOCK_TOKEN_RESPONSE.access_token,
-            )
-            expect(mockSessionService.setSession).toHaveBeenCalled()
-        })
+                expect(response.headers.location).toContain('authenticated=true')
+                expect(
+                    getDiscordOAuthMock().exchangeCodeForToken,
+                ).toHaveBeenCalledWith(
+                    MOCK_AUTH_CODE,
+                    expect.stringContaining('/api/auth/callback'),
+                )
+                expect(getDiscordOAuthMock().getUserInfo).toHaveBeenCalledWith(
+                    MOCK_TOKEN_RESPONSE.access_token,
+                )
+                expect(getSessionServiceMock().setSession).toHaveBeenCalled()
+            },
+        )
 
         test('should return 400 when code is missing', async () => {
             const response = await request(app)
@@ -195,10 +199,7 @@ describe('Auth Routes Integration', () => {
         })
 
         test('should return 500 when token exchange fails', async () => {
-            const mockDiscordOAuth = discordOAuthService as jest.Mocked<
-                typeof discordOAuthService
-            >
-            mockDiscordOAuth.exchangeCodeForToken.mockRejectedValue(
+            getDiscordOAuthMock().exchangeCodeForToken.mockRejectedValue(
                 new Error('Token exchange failed'),
             )
 
@@ -214,13 +215,7 @@ describe('Auth Routes Integration', () => {
         })
 
         test('should return 500 when session ID is missing', async () => {
-            const mockDiscordOAuth = discordOAuthService as jest.Mocked<
-                typeof discordOAuthService
-            >
-            mockDiscordOAuth.exchangeCodeForToken.mockResolvedValue(
-                MOCK_TOKEN_RESPONSE,
-            )
-            mockDiscordOAuth.getUserInfo.mockResolvedValue(MOCK_DISCORD_USER)
+            mockSuccessfulOAuthFlow()
 
             const response = await request(app)
                 .get('/api/auth/callback')
@@ -231,41 +226,9 @@ describe('Auth Routes Integration', () => {
         })
     })
 
-    describe('GET /auth/callback', () => {
-        test('should handle successful OAuth callback through alias', async () => {
-            const mockDiscordOAuth = discordOAuthService as jest.Mocked<
-                typeof discordOAuthService
-            >
-            mockDiscordOAuth.exchangeCodeForToken.mockResolvedValue(
-                MOCK_TOKEN_RESPONSE,
-            )
-            mockDiscordOAuth.getUserInfo.mockResolvedValue(MOCK_DISCORD_USER)
-
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.setSession.mockResolvedValue()
-
-            const response = await request(app)
-                .get('/auth/callback')
-                .query({ code: MOCK_AUTH_CODE })
-                .set('Cookie', ['sessionId=callback_session_id'])
-                .expect(302)
-
-            expect(response.headers.location).toContain('authenticated=true')
-            expect(mockDiscordOAuth.exchangeCodeForToken).toHaveBeenCalledWith(
-                MOCK_AUTH_CODE,
-                expect.stringContaining('/api/auth/callback'),
-            )
-            expect(mockSessionService.setSession).toHaveBeenCalled()
-        })
-    })
-
     describe('GET /api/auth/logout', () => {
         test('should logout successfully', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
+            const mockSessionService = getSessionServiceMock()
             mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
             mockSessionService.deleteSession.mockResolvedValue()
 
@@ -279,9 +242,7 @@ describe('Auth Routes Integration', () => {
         })
 
         test('should return 401 when not authenticated', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
+            const mockSessionService = getSessionServiceMock()
             mockSessionService.getSession.mockResolvedValue(null)
 
             const response = await request(app)
@@ -296,9 +257,7 @@ describe('Auth Routes Integration', () => {
 
     describe('GET /api/auth/status', () => {
         test('should return authenticated status when session exists', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
+            const mockSessionService = getSessionServiceMock()
             mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
 
             const response = await request(app)
@@ -318,9 +277,7 @@ describe('Auth Routes Integration', () => {
         })
 
         test('should return unauthenticated when session does not exist', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
+            const mockSessionService = getSessionServiceMock()
             mockSessionService.getSession.mockResolvedValue(null)
 
             const response = await request(app)
@@ -339,9 +296,7 @@ describe('Auth Routes Integration', () => {
         })
 
         test('should return unauthenticated on error', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
+            const mockSessionService = getSessionServiceMock()
             mockSessionService.getSession.mockRejectedValue(
                 new Error('Service error'),
             )
@@ -357,9 +312,7 @@ describe('Auth Routes Integration', () => {
 
     describe('GET /api/auth/user', () => {
         test('should return user data when authenticated', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
+            const mockSessionService = getSessionServiceMock()
             mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
 
             const response = await request(app)
@@ -376,9 +329,7 @@ describe('Auth Routes Integration', () => {
         })
 
         test('should return 401 when not authenticated', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
+            const mockSessionService = getSessionServiceMock()
             mockSessionService.getSession.mockResolvedValue(null)
 
             const response = await request(app)

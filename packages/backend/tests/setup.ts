@@ -30,7 +30,9 @@ jest.mock('connect-redis', () => ({
 }))
 
 jest.mock('express-session', () => {
-    class MockStore {}
+    class MockStore {
+        readonly __mockStore = true
+    }
 
     class MockMemoryStore extends MockStore {
         get(

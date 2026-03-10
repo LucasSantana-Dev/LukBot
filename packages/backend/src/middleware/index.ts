@@ -1,7 +1,7 @@
 import express, { type Express } from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
-import { existsSync } from 'fs'
+import { existsSync } from 'node:fs'
 import path from 'path'
 import { setupSessionMiddleware } from './session'
 import { requestLogger } from './requestLogger'
