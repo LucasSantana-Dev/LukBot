@@ -11,15 +11,12 @@ module.exports = {
   ],
   collectCoverageFrom: [
     'src/**/*.ts',
-    '../shared/src/services/GuildRoleAccessService.ts',
-    '../shared/src/services/index.ts',
     '!src/**/*.d.ts',
     '!src/**/*.test.ts',
     '!src/**/*.spec.ts',
     '!src/index.ts',
     '!src/server.ts',
     '!src/middleware/index.ts',
-    '!src/routes/index.ts',
     '!src/routes/music/**',
     'src/routes/music/playbackRoutes.ts',
     '!src/routes/lastfm.ts'

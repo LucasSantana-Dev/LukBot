@@ -23,6 +23,10 @@ vi.mock('./pages/Moderation', () => ({
     default: () => <h1>Moderation Page</h1>,
 }))
 
+vi.mock('./pages/TwitchNotifications', () => ({
+    default: () => <h1>Twitch Notifications Page</h1>,
+}))
+
 type AuthState = {
     isAuthenticated: boolean
     isLoading: boolean
@@ -81,6 +85,33 @@ describe('App authenticated routing', () => {
         ).toBeInTheDocument()
     })
 
+    test('renders login page when auth check rejects', async () => {
+        mockAuthStore({
+            checkAuth: async () => {
+                throw new Error('auth failed')
+            },
+        })
+
+        renderAt('/unknown')
+
+        expect(
+            await screen.findByRole('heading', { name: 'Login Page' }),
+        ).toBeInTheDocument()
+    })
+
+    test('renders guarded route when authenticated and no guild is selected', async () => {
+        mockAuthStore({ isAuthenticated: true })
+        mockGuildStore({ selectedGuild: null, memberContextLoading: false })
+
+        renderAt('/twitch')
+
+        expect(
+            await screen.findByRole('heading', {
+                name: 'Twitch Notifications Page',
+            }),
+        ).toBeInTheDocument()
+    })
+
     test('renders page loader while member context is loading for authenticated routes', async () => {
         mockAuthStore({ isAuthenticated: true })
         mockGuildStore({
@@ -106,6 +137,31 @@ describe('App authenticated routing', () => {
         })
         expect(screen.queryByText('Moderation Page')).not.toBeInTheDocument()
         expect(screen.queryByText('Access denied')).not.toBeInTheDocument()
+    })
+
+    test('renders guarded route when authenticated user has module access', async () => {
+        mockAuthStore({ isAuthenticated: true })
+        mockGuildStore({
+            selectedGuild: {
+                id: '123',
+                name: 'Guild',
+                effectiveAccess: {
+                    overview: 'manage',
+                    settings: 'manage',
+                    moderation: 'view',
+                    automation: 'none',
+                    music: 'none',
+                    integrations: 'none',
+                },
+            },
+            memberContextLoading: false,
+        })
+
+        renderAt('/moderation')
+
+        expect(
+            await screen.findByRole('heading', { name: 'Moderation Page' }),
+        ).toBeInTheDocument()
     })
 
     test('renders forbidden state when authenticated user lacks module access', async () => {
