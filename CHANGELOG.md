@@ -52,6 +52,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   enrichment (no forced `0` fallback when metrics are unavailable)
 - Sidebar profile identity now resolves as `nick > global_name > username`
   with secondary label `@username` (removed legacy `#0` discriminator behavior)
+- Frontend shell now initializes guild selection on all authenticated routes,
+  so the server selector is populated right after login instead of only after
+  visiting pages that manually triggered guild loading (PR #162)
 
 ### Changed
 
