@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, jest, test } from '@jest/globals'
+import type { Express } from 'express'
 
 const setupHealthRoutes = jest.fn()
 const setupAuthRoutes = jest.fn()
@@ -89,9 +90,11 @@ jest.mock('../../../src/middleware/errorHandler', () => ({
 
 import { setupRoutes } from '../../../src/routes'
 
+type MockApp = Pick<Express, 'use'>
+
 describe('setupRoutes', () => {
-    const app = {
-        use: jest.fn(),
+    const app: MockApp = {
+        use: jest.fn() as unknown as Express['use'],
     }
 
     beforeEach(() => {
@@ -102,7 +105,7 @@ describe('setupRoutes', () => {
     })
 
     test('registers route guards, route modules, and error handler', () => {
-        setupRoutes(app as any)
+        setupRoutes(app as Express)
         const useCalls = app.use.mock.calls as unknown[][]
 
         expect(setupHealthRoutes).toHaveBeenCalledWith(app)
