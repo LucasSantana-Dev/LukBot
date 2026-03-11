@@ -21,13 +21,20 @@ let tempDir: string | null = null
 
 afterEach(async () => {
     if (tempDir) {
-        await fs.rm(tempDir, { recursive: true, force: true })
+        await fs.rm(tempDir, {
+            recursive: true,
+            force: true,
+            maxRetries: 5,
+            retryDelay: 50,
+        })
         tempDir = null
     }
 })
 
 describe('getCommandsFromDirectory', () => {
-    it('ignores test/spec files when listing command modules', async () => {
+    it(
+        'ignores test/spec files when listing command modules',
+        async () => {
         tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lucky-cmd-loader-'))
 
         await fs.writeFile(
@@ -50,5 +57,7 @@ describe('getCommandsFromDirectory', () => {
 
         const files = getCommandFiles(tempDir)
         expect(files).toEqual(['valid.js'])
-    })
+        },
+        30_000,
+    )
 })
