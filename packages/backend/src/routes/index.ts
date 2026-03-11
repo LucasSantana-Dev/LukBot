@@ -17,91 +17,59 @@ import { requireGuildModuleAccess } from '../middleware/guildAccess'
 import { errorHandler } from '../middleware/errorHandler'
 import { setupHealthRoutes } from './health'
 
+type GuildGuardConfig = {
+    path: string
+    module: Parameters<typeof requireGuildModuleAccess>[0]
+    mode?: Parameters<typeof requireGuildModuleAccess>[1]
+}
+
+const guildGuardConfigs: GuildGuardConfig[] = [
+    { path: '/api/guilds/:guildId/moderation', module: 'moderation' },
+    { path: '/api/guilds/:guildId/automod', module: 'moderation' },
+    { path: '/api/guilds/:guildId/logs', module: 'moderation' },
+    { path: '/api/guilds/:guildId/commands', module: 'automation' },
+    { path: '/api/guilds/:guildId/automessages', module: 'automation' },
+    { path: '/api/guilds/:guildId/embeds', module: 'automation' },
+    { path: '/api/guilds/:guildId/reaction-roles', module: 'automation' },
+    { path: '/api/guilds/:guildId/roles', module: 'automation' },
+    { path: '/api/guilds/:guildId/music', module: 'music' },
+    { path: '/api/guilds/:guildId/twitch', module: 'integrations' },
+    { path: '/api/guilds/:guildId/settings', module: 'settings' },
+    { path: '/api/guilds/:guildId/modules', module: 'settings' },
+    { path: '/api/guilds/:guildId/rbac', module: 'settings', mode: 'manage' },
+    { path: '/api/guilds/:id/features', module: 'settings' },
+]
+
+const routeSetups = [
+    setupAuthRoutes,
+    setupToggleRoutes,
+    setupGuildRoutes,
+    setupManagementRoutes,
+    setupModerationRoutes,
+    setupLastFmRoutes,
+    setupGuildSettingsRoutes,
+    setupTrackHistoryRoutes,
+    setupTwitchRoutes,
+    setupLyricsRoutes,
+    setupRolesRoutes,
+    setupRbacRoutes,
+]
+
 export function setupRoutes(app: Express): void {
     setupHealthRoutes(app)
     app.use('/api/', apiLimiter)
-    app.use(
-        '/api/guilds/:guildId/moderation',
-        requireAuth,
-        requireGuildModuleAccess('moderation'),
-    )
-    app.use(
-        '/api/guilds/:guildId/automod',
-        requireAuth,
-        requireGuildModuleAccess('moderation'),
-    )
-    app.use(
-        '/api/guilds/:guildId/logs',
-        requireAuth,
-        requireGuildModuleAccess('moderation'),
-    )
-    app.use(
-        '/api/guilds/:guildId/commands',
-        requireAuth,
-        requireGuildModuleAccess('automation'),
-    )
-    app.use(
-        '/api/guilds/:guildId/automessages',
-        requireAuth,
-        requireGuildModuleAccess('automation'),
-    )
-    app.use(
-        '/api/guilds/:guildId/embeds',
-        requireAuth,
-        requireGuildModuleAccess('automation'),
-    )
-    app.use(
-        '/api/guilds/:guildId/reaction-roles',
-        requireAuth,
-        requireGuildModuleAccess('automation'),
-    )
-    app.use(
-        '/api/guilds/:guildId/roles',
-        requireAuth,
-        requireGuildModuleAccess('automation'),
-    )
-    app.use(
-        '/api/guilds/:guildId/music',
-        requireAuth,
-        requireGuildModuleAccess('music'),
-    )
-    app.use(
-        '/api/guilds/:guildId/twitch',
-        requireAuth,
-        requireGuildModuleAccess('integrations'),
-    )
-    app.use(
-        '/api/guilds/:guildId/settings',
-        requireAuth,
-        requireGuildModuleAccess('settings'),
-    )
-    app.use(
-        '/api/guilds/:guildId/modules',
-        requireAuth,
-        requireGuildModuleAccess('settings'),
-    )
-    app.use(
-        '/api/guilds/:guildId/rbac',
-        requireAuth,
-        requireGuildModuleAccess('settings', 'manage'),
-    )
-    app.use(
-        '/api/guilds/:id/features',
-        requireAuth,
-        requireGuildModuleAccess('settings'),
-    )
-    setupAuthRoutes(app)
-    setupToggleRoutes(app)
-    setupGuildRoutes(app)
-    setupManagementRoutes(app)
-    setupModerationRoutes(app)
-    setupLastFmRoutes(app)
-    setupGuildSettingsRoutes(app)
-    setupTrackHistoryRoutes(app)
-    setupTwitchRoutes(app)
-    setupLyricsRoutes(app)
-    setupRolesRoutes(app)
-    setupRbacRoutes(app)
+
+    for (const config of guildGuardConfigs) {
+        const middleware = config.mode
+            ? requireGuildModuleAccess(config.module, config.mode)
+            : requireGuildModuleAccess(config.module)
+
+        app.use(config.path, requireAuth, middleware)
+    }
+
+    for (const setupRoute of routeSetups) {
+        setupRoute(app)
+    }
 
     app.use(errorHandler)
 }
