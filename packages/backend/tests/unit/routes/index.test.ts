@@ -103,6 +103,7 @@ describe('setupRoutes', () => {
 
     test('registers route guards, route modules, and error handler', () => {
         setupRoutes(app as any)
+        const useCalls = app.use.mock.calls as unknown[][]
 
         expect(setupHealthRoutes).toHaveBeenCalledWith(app)
         expect(app.use).toHaveBeenCalledWith('/api/', apiLimiter)
@@ -139,5 +140,23 @@ describe('setupRoutes', () => {
         expect(setupRbacRoutes).toHaveBeenCalledWith(app)
 
         expect(app.use).toHaveBeenCalledWith(errorHandler)
+        expect(useCalls[0]).toEqual(['/api/', apiLimiter])
+        expect(useCalls[useCalls.length - 1]).toEqual([errorHandler])
+
+        const rbacGuardIndex = useCalls.findIndex(
+            (call) => call[0] === '/api/guilds/:guildId/rbac',
+        )
+        expect(useCalls[rbacGuardIndex]).toEqual([
+            '/api/guilds/:guildId/rbac',
+            requireAuth,
+            'settings:manage',
+        ])
+
+        const featuresGuardIndex = useCalls.findIndex(
+            (call) => call[0] === '/api/guilds/:id/features',
+        )
+        const guardCallOrder = app.use.mock.invocationCallOrder[featuresGuardIndex]
+        const firstRouteSetupOrder = setupAuthRoutes.mock.invocationCallOrder[0]
+        expect(guardCallOrder).toBeLessThan(firstRouteSetupOrder)
     })
 })

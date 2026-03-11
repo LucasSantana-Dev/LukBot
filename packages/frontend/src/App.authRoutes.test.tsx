@@ -61,16 +61,16 @@ const defaultGuildState: GuildState = {
 
 function mockAuthStore(overrides: Partial<AuthState> = {}) {
     const state = { ...defaultAuthState, ...overrides }
-    vi.mocked(useAuthStore).mockImplementation((selector) =>
-        selector ? selector(state as any) : (state as any),
-    )
+    const storeImpl = ((selector?: (value: AuthState) => unknown) =>
+        selector ? selector(state) : state) as typeof useAuthStore
+    vi.mocked(useAuthStore).mockImplementation(storeImpl)
 }
 
 function mockGuildStore(overrides: Partial<GuildState> = {}) {
     const state = { ...defaultGuildState, ...overrides }
-    vi.mocked(useGuildStore).mockImplementation((selector) =>
-        selector ? selector(state as any) : (state as any),
-    )
+    const storeImpl = ((selector?: (value: GuildState) => unknown) =>
+        selector ? selector(state) : state) as typeof useGuildStore
+    vi.mocked(useGuildStore).mockImplementation(storeImpl)
 }
 
 function renderAt(path: string) {
@@ -96,13 +96,16 @@ describe('App authenticated routing', () => {
     })
 
     test('renders login page when auth check rejects', async () => {
+        const checkAuth = vi.fn().mockRejectedValue(new Error('auth failed'))
         mockAuthStore({
-            checkAuth: async () => {
-                throw new Error('auth failed')
-            },
+            checkAuth,
         })
 
         renderAt('/unknown')
+
+        await waitFor(() => {
+            expect(checkAuth).toHaveBeenCalled()
+        })
 
         expect(
             await screen.findByRole('heading', { name: 'Login Page' }),
