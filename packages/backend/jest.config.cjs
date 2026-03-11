@@ -11,6 +11,8 @@ module.exports = {
   ],
   collectCoverageFrom: [
     'src/**/*.ts',
+    '../shared/src/services/GuildRoleAccessService.ts',
+    '../shared/src/services/index.ts',
     '!src/**/*.d.ts',
     '!src/**/*.test.ts',
     '!src/**/*.spec.ts',
