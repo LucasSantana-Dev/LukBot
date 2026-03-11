@@ -195,8 +195,16 @@ export async function replenishQueue(queue: GuildQueue): Promise<void> {
                 queue.guild.id,
                 requestedBy?.id,
             )
-        const excludedUrls = buildExcludedUrls(queue, currentTrack, historyTracks)
-        const excludedKeys = buildExcludedKeys(queue, currentTrack, historyTracks)
+        const excludedUrls = buildExcludedUrls(
+            queue,
+            currentTrack,
+            historyTracks,
+        )
+        const excludedKeys = buildExcludedKeys(
+            queue,
+            currentTrack,
+            historyTracks,
+        )
         const recentArtists = buildRecentArtists(currentTrack, historyTracks)
         const candidates = await collectRecommendationCandidates(
             queue,
@@ -210,7 +218,13 @@ export async function replenishQueue(queue: GuildQueue): Promise<void> {
         )
         const selected = selectDiverseCandidates(candidates, missingTracks)
 
-        addSelectedTracks(queue, selected, excludedUrls, excludedKeys)
+        addSelectedTracks(
+            queue,
+            selected,
+            excludedUrls,
+            excludedKeys,
+            requestedBy?.id,
+        )
 
         if (selected.length === 0) return
 
@@ -294,19 +308,32 @@ async function collectRecommendationCandidates(
     const candidates = new Map<string, ScoredTrack>()
 
     for (const seed of seedTracks) {
-        const seedCandidates = await searchSeedCandidates(queue, seed, requestedBy)
+        const seedCandidates = await searchSeedCandidates(
+            queue,
+            seed,
+            requestedBy,
+        )
         for (const candidate of seedCandidates) {
-            if (!shouldIncludeCandidate(candidate, excludedUrls, excludedKeys)) {
+            if (
+                !shouldIncludeCandidate(candidate, excludedUrls, excludedKeys)
+            ) {
                 continue
             }
-            const normalizedKey = normalizeTrackKey(candidate.title, candidate.author)
+            const normalizedKey = normalizeTrackKey(
+                candidate.title,
+                candidate.author,
+            )
             if (dislikedTrackKeys.has(normalizedKey)) {
                 continue
             }
             upsertScoredCandidate(
                 candidates,
                 candidate,
-                calculateRecommendationScore(candidate, currentTrack, recentArtists),
+                calculateRecommendationScore(
+                    candidate,
+                    currentTrack,
+                    recentArtists,
+                ),
             )
         }
     }
@@ -382,9 +409,10 @@ function addSelectedTracks(
     selected: ScoredTrack[],
     excludedUrls: Set<string>,
     excludedKeys: Set<string>,
+    requestedById?: string,
 ): void {
     for (const candidate of selected) {
-        markAsAutoplayTrack(candidate.track, candidate.reason)
+        markAsAutoplayTrack(candidate.track, candidate.reason, requestedById)
         queue.addTrack(candidate.track)
         excludedUrls.add(candidate.track.url)
         excludedKeys.add(
@@ -534,15 +562,24 @@ function splitTokens(value: string): string[] {
         .filter((token) => token.length > 2)
 }
 
-function markAsAutoplayTrack(track: Track, recommendationReason: string): void {
+function markAsAutoplayTrack(
+    track: Track,
+    recommendationReason: string,
+    requestedById?: string,
+): void {
     const trackWithMetadata = track as unknown as {
         metadata?: Record<string, unknown>
     }
     const metadata = trackWithMetadata.metadata ?? {}
+    const existingRequestedById =
+        typeof metadata.requestedById === 'string'
+            ? metadata.requestedById
+            : undefined
 
     trackWithMetadata.metadata = {
         ...metadata,
         isAutoplay: true,
         recommendationReason,
+        requestedById: requestedById ?? existingRequestedById,
     }
 }

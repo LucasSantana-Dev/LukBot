@@ -222,7 +222,7 @@ describe('Last.fm Routes Integration', () => {
 
             expect(res.headers.location).toContain(
                 encodeURIComponent(
-                    'https://api.example.com/api/lastfm/callback',
+                    `https://api.example.com/api/lastfm/callback?state=${state}`,
                 ),
             )
         })
@@ -329,6 +329,27 @@ describe('Last.fm Routes Integration', () => {
 
             expect(res.headers.location).toContain('lastfm_linked=true')
             expect(mockExchangeToken).toHaveBeenCalledWith('valid_token')
+            expect(mockSetLink).toHaveBeenCalledWith(
+                DISCORD_ID,
+                'sk_123',
+                'fmuser',
+            )
+        })
+
+        test('should link account when valid state comes from query', async () => {
+            const state = buildState(DISCORD_ID, LINK_SECRET)
+            mockExchangeToken.mockResolvedValue({
+                sessionKey: 'sk_123',
+                username: 'fmuser',
+            })
+            mockSetLink.mockResolvedValue(true)
+
+            const res = await request(app)
+                .get('/api/lastfm/callback')
+                .query({ token: 'valid_token', state })
+                .expect(302)
+
+            expect(res.headers.location).toContain('lastfm_linked=true')
             expect(mockSetLink).toHaveBeenCalledWith(
                 DISCORD_ID,
                 'sk_123',

@@ -16,7 +16,10 @@ import { getPrimaryFrontendUrl } from '../utils/frontendOrigin'
 
 const LASTFM_STATE_COOKIE = 'lastfm_state'
 const STATE_MAX_AGE_SEC = 600
-const lastFmCallbackQuery = z.object({ token: z.string().min(1) })
+const lastFmCallbackQuery = z.object({
+    token: z.string().min(1),
+    state: z.string().min(1).optional(),
+})
 
 function getLinkSecret(): string {
     const secret =
@@ -64,6 +67,58 @@ function decodeAndVerifyState(state: string, secret: string): string | null {
 
 function getFrontendUrl(): string {
     return getPrimaryFrontendUrl()
+}
+
+function removeTrailingSlash(value: string): string {
+    if (value.endsWith('/')) {
+        return value.slice(0, -1)
+    }
+    return value
+}
+
+function getForwardedHeader(req: Request, name: string): string | undefined {
+    const fromGetter = req.get(name)
+    if (typeof fromGetter === 'string' && fromGetter.trim().length > 0) {
+        return fromGetter.split(',')[0]?.trim()
+    }
+
+    const header = req.headers[name]
+    if (!header) return undefined
+    const rawValue = Array.isArray(header) ? header[0] : header
+    const value = rawValue.split(',')[0]?.trim()
+    return value && value.length > 0 ? value : undefined
+}
+
+function getRequestOrigin(req: Request): string {
+    const forwardedProto = getForwardedHeader(req, 'x-forwarded-proto')
+    const forwardedHost = getForwardedHeader(req, 'x-forwarded-host')
+    const protocol =
+        process.env.NODE_ENV === 'production'
+            ? 'https'
+            : (forwardedProto ?? req.protocol ?? 'http')
+    const host =
+        forwardedHost ??
+        req.get('host') ??
+        `localhost:${process.env.WEBAPP_PORT ?? '3000'}`
+    return `${protocol}://${host}`
+}
+
+function resolveBackendBaseUrl(req: Request): string {
+    const configuredBackend = process.env.WEBAPP_BACKEND_URL?.trim()
+    if (configuredBackend) {
+        return removeTrailingSlash(configuredBackend)
+    }
+
+    const redirectUri = process.env.WEBAPP_REDIRECT_URI
+    if (redirectUri) {
+        try {
+            return removeTrailingSlash(new URL(redirectUri).origin)
+        } catch {
+            return removeTrailingSlash(getRequestOrigin(req))
+        }
+    }
+
+    return removeTrailingSlash(getRequestOrigin(req))
 }
 
 export function setupLastFmRoutes(app: Express): void {
@@ -160,9 +215,8 @@ export function setupLastFmRoutes(app: Express): void {
                         `${frontendUrl}/?error=lastfm_not_configured`,
                     )
                 }
-                const backendUrl =
-                    process.env.WEBAPP_BACKEND_URL ?? getFrontendUrl()
-                const callbackUrl = `${backendUrl}/api/lastfm/callback`
+                const backendBaseUrl = resolveBackendBaseUrl(req)
+                const callbackUrl = `${backendBaseUrl}/api/lastfm/callback?state=${encodeURIComponent(state)}`
                 const authUrl = `https://www.last.fm/api/auth?api_key=${encodeURIComponent(apiKey)}&cb=${encodeURIComponent(callbackUrl)}`
                 res.redirect(authUrl)
             } catch (error) {
@@ -187,13 +241,21 @@ export function setupLastFmRoutes(app: Express): void {
                 )
             }
 
-            if (!stateFromCookie || typeof stateFromCookie !== 'string') {
+            const stateFromQuery = parsedQuery.data.state
+            const state =
+                typeof stateFromQuery === 'string'
+                    ? stateFromQuery
+                    : typeof stateFromCookie === 'string'
+                      ? stateFromCookie
+                      : null
+
+            if (!state) {
                 return res.redirect(
                     `${frontendUrl}/?error=lastfm_missing_state`,
                 )
             }
             const secret = getLinkSecret()
-            const discordId = decodeAndVerifyState(stateFromCookie, secret)
+            const discordId = decodeAndVerifyState(state, secret)
             if (!discordId) {
                 return res.redirect(
                     `${frontendUrl}/?error=lastfm_invalid_state`,
