@@ -22,12 +22,18 @@ jest.mock('./serversetupCriativaria', () => ({
     formatCriativariaSummary: jest.fn(),
 }))
 
-function createInteraction(options: { template: string; mode: string | null }) {
+function createInteraction(options: {
+    template: string
+    mode: string | null
+    withGuild?: boolean
+}) {
     return {
-        guild: {
-            id: '895505900016631839',
-            name: 'Criativaria',
-        },
+        guild: options.withGuild === false
+            ? null
+            : {
+                id: '895505900016631839',
+                name: 'Criativaria',
+            },
         options: {
             getString: jest.fn((name: string, required?: boolean) => {
                 if (name === 'template') {
@@ -113,5 +119,47 @@ describe('serversetup command', () => {
             }),
         )
         expect(runCriativariaSetup).not.toHaveBeenCalled()
+    })
+
+    it('returns unknown template error when template is unsupported', async () => {
+        ;(resolveSetupMode as jest.Mock).mockReturnValue('apply')
+
+        const interaction = createInteraction({
+            template: 'unknown-template',
+            mode: 'apply',
+        })
+
+        await serversetupCommand.execute({ interaction } as any)
+
+        expect(interactionReply).toHaveBeenCalledWith(
+            expect.objectContaining({
+                interaction,
+                content: expect.objectContaining({
+                    content: expect.stringContaining('Unknown template'),
+                }),
+            }),
+        )
+        expect(interaction.deferReply).not.toHaveBeenCalled()
+        expect(runCriativariaSetup).not.toHaveBeenCalled()
+    })
+
+    it('rejects execution outside guild context', async () => {
+        const interaction = createInteraction({
+            template: 'forge-space',
+            mode: 'apply',
+            withGuild: false,
+        })
+
+        await serversetupCommand.execute({ interaction } as any)
+
+        expect(interactionReply).toHaveBeenCalledWith(
+            expect.objectContaining({
+                interaction,
+                content: expect.objectContaining({
+                    content: expect.stringContaining('only be used in a server'),
+                }),
+            }),
+        )
+        expect(interaction.deferReply).not.toHaveBeenCalled()
     })
 })
