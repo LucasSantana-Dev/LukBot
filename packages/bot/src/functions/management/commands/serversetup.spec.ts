@@ -1,96 +1,46 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-import { ChannelType } from 'discord.js'
+import serversetupCommand from './serversetup'
+import { interactionReply } from '../../../utils/general/interactionReply'
+import {
+    formatCriativariaSummary,
+    resolveSetupMode,
+    runCriativariaSetup,
+} from './serversetupCriativaria'
+
+jest.mock('../../../utils/general/interactionReply', () => ({
+    interactionReply: jest.fn(),
+}))
 
 jest.mock('@lucky/shared/utils', () => ({
     infoLog: jest.fn(),
     errorLog: jest.fn(),
 }))
 
-import serversetupCommand from './serversetup'
+jest.mock('./serversetupCriativaria', () => ({
+    resolveSetupMode: jest.fn(),
+    runCriativariaSetup: jest.fn(),
+    formatCriativariaSummary: jest.fn(),
+}))
 
-function createGuild() {
-    const welcomeSend = jest.fn().mockResolvedValue(undefined)
-
-    const roles = [
-        { id: 'everyone', name: '@everyone' },
-        { id: 'maintainer', name: 'Maintainer' },
-        { id: 'contributor', name: 'Contributor' },
-        { id: 'community', name: 'Community' },
-    ]
-
-    const categories = [
-        { id: 'cat-info', name: '📢 INFO', type: ChannelType.GuildCategory },
-        {
-            id: 'cat-community',
-            name: '💬 COMMUNITY',
-            type: ChannelType.GuildCategory,
-        },
-        { id: 'cat-support', name: '🛠️ SUPPORT', type: ChannelType.GuildCategory },
-        {
-            id: 'cat-development',
-            name: '🏗️ DEVELOPMENT',
-            type: ChannelType.GuildCategory,
-        },
-        { id: 'cat-chill', name: '🎵 CHILL', type: ChannelType.GuildCategory },
-    ]
-
-    const textChannels = [
-        ['announcements', 'cat-info'],
-        ['rules', 'cat-info'],
-        ['roadmap', 'cat-info'],
-        ['general', 'cat-community'],
-        ['introductions', 'cat-community'],
-        ['showcase', 'cat-community'],
-        ['getting-started', 'cat-support'],
-        ['siza-help', 'cat-support'],
-        ['mcp-gateway-help', 'cat-support'],
-        ['troubleshooting', 'cat-support'],
-        ['contributing', 'cat-development'],
-        ['architecture', 'cat-development'],
-        ['releases', 'cat-development'],
-        ['off-topic', 'cat-chill'],
-        ['music-bot', 'cat-chill'],
-    ].map(([name, parentId]) => ({
-        id: `${name}-id`,
-        name,
-        parentId,
-        type: ChannelType.GuildText,
-        send: name === 'general' ? welcomeSend : undefined,
-    }))
-
-    const channels = [...categories, ...textChannels]
-
+function createInteraction(options: { template: string; mode: string | null }) {
     return {
-        name: 'Criativaria',
-        roles: {
-            cache: {
-                find: (predicate: (value: unknown) => boolean) =>
-                    roles.find((role) => predicate(role)),
-                everyone: { id: 'everyone' },
-            },
-            create: jest.fn(),
+        guild: {
+            id: '895505900016631839',
+            name: 'Criativaria',
         },
-        channels: {
-            cache: {
-                find: (predicate: (value: unknown) => boolean) =>
-                    channels.find((channel) => predicate(channel)),
-            },
-            create: jest.fn(),
-        },
-        setIcon: jest.fn(),
-        setSplash: jest.fn(),
-        setBanner: jest.fn(),
-        _welcomeSend: welcomeSend,
-    } as any
-}
-
-function createInteraction(guild: any) {
-    return {
-        guild,
         options: {
-            getString: jest.fn((_name: string, required: boolean) =>
-                required ? 'forge-space' : null,
-            ),
+            getString: jest.fn((name: string, required?: boolean) => {
+                if (name === 'template') {
+                    return options.template
+                }
+                if (name === 'mode') {
+                    return options.mode
+                }
+                if (required) {
+                    throw new Error(`Missing required option ${name}`)
+                }
+                return null
+            }),
         },
         deferReply: jest.fn().mockResolvedValue(undefined),
         editReply: jest.fn().mockResolvedValue(undefined),
@@ -102,23 +52,66 @@ describe('serversetup command', () => {
         jest.clearAllMocks()
     })
 
-    it('does not mutate guild visual identity during setup', async () => {
-        const guild = createGuild()
-        const interaction = createInteraction(guild)
+    it('exposes template and mode options with expected choices', () => {
+        const json = serversetupCommand.data.toJSON()
+        const templateOption = json.options?.find(
+            (option) => option.name === 'template',
+        )
+        const modeOption = json.options?.find((option) => option.name === 'mode')
+
+        const templateChoices =
+            templateOption?.choices?.map((choice) => choice.value) ?? []
+        const modeChoices = modeOption?.choices?.map((choice) => choice.value) ?? []
+
+        expect(templateChoices).toEqual(
+            expect.arrayContaining(['forge-space', 'criativaria']),
+        )
+        expect(modeChoices).toEqual(expect.arrayContaining(['apply', 'dry-run']))
+    })
+
+    it('runs criativaria template using resolved mode and summary output', async () => {
+        ;(resolveSetupMode as jest.Mock).mockReturnValue('dry-run')
+        ;(runCriativariaSetup as jest.Mock).mockResolvedValue({
+            applied: ['ok'],
+            unchanged: [],
+            warnings: [],
+        })
+        ;(formatCriativariaSummary as jest.Mock).mockReturnValue('summary output')
+
+        const interaction = createInteraction({
+            template: 'criativaria',
+            mode: 'dry-run',
+        })
 
         await serversetupCommand.execute({ interaction } as any)
 
-        expect(guild.setIcon).not.toHaveBeenCalled()
-        expect(guild.setSplash).not.toHaveBeenCalled()
-        expect(guild.setBanner).not.toHaveBeenCalled()
-        expect(guild._welcomeSend).toHaveBeenCalledTimes(1)
+        expect(resolveSetupMode).toHaveBeenCalledWith('dry-run')
+        expect(interaction.deferReply).toHaveBeenCalledWith({ ephemeral: true })
+        expect(runCriativariaSetup).toHaveBeenCalledWith(interaction.guild, 'dry-run')
+        expect(formatCriativariaSummary).toHaveBeenCalled()
+        expect(interaction.editReply).toHaveBeenCalledWith('summary output')
+        expect(interactionReply).not.toHaveBeenCalled()
+    })
 
-        const finalReply =
-            interaction.editReply.mock.calls[
-                interaction.editReply.mock.calls.length - 1
-            ][0]
-        expect(finalReply).toContain(
-            'Lucky preserves guild identity',
+    it('returns forge-space dry-run preview when mode is dry-run', async () => {
+        ;(resolveSetupMode as jest.Mock).mockReturnValue('dry-run')
+
+        const interaction = createInteraction({
+            template: 'forge-space',
+            mode: 'dry-run',
+        })
+
+        await serversetupCommand.execute({ interaction } as any)
+
+        expect(interactionReply).toHaveBeenCalledWith(
+            expect.objectContaining({
+                interaction,
+                content: expect.objectContaining({
+                    content: expect.stringContaining('Forge Space dry-run'),
+                    ephemeral: true,
+                }),
+            }),
         )
+        expect(runCriativariaSetup).not.toHaveBeenCalled()
     })
 })
