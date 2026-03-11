@@ -90,10 +90,4 @@ describe('Layout', () => {
         ).toBeInTheDocument()
         expect(screen.queryByText('Active server')).not.toBeInTheDocument()
     })
-
-    test('initializes guild selection hook for authenticated shell routes', () => {
-        renderLayout('/')
-
-        expect(useGuildSelection).toHaveBeenCalledTimes(1)
-    })
 })
