@@ -105,7 +105,7 @@ const CRIATIVARIA_BANNED_WORDS = [
     'steamgift',
     'discord nitro free',
     'claim your prize',
-    'http://discord-gift',
+    'discord-gift',
     'airdrop',
     'crypto giveaway',
 ]

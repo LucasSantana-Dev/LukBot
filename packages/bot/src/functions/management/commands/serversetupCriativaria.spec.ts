@@ -405,6 +405,34 @@ describe('serversetupCriativaria helpers', () => {
         expect(staffSend).not.toHaveBeenCalled()
     })
 
+    it('configures automod with scheme-agnostic phishing patterns', async () => {
+        const channelMap = createBaseChannelMap({
+            modLog: {
+                id: CRIATIVARIA_CHANNEL_IDS.modLog,
+                name: 'mod-log',
+                send: jest.fn().mockResolvedValue(undefined),
+            },
+            staffAssets: {
+                id: CRIATIVARIA_CHANNEL_IDS.staffAssets,
+                name: 'staff-assets',
+                send: jest.fn().mockResolvedValue({
+                    attachments: {
+                        first: () => ({
+                            url: 'https://cdn.discordapp.com/attachments/banner.png',
+                        }),
+                    },
+                }),
+            },
+        })
+
+        const guild = createMockGuild({ channelMap, roleIds: ALL_ROLE_IDS })
+        await runCriativariaSetup(guild, 'apply')
+
+        const payload = autoModService.updateSettings.mock.calls[0]?.[1]
+        expect(payload?.bannedWords).toContain('discord-gift')
+        expect(payload?.bannedWords).not.toContain('http://discord-gift')
+    })
+
     it('captures step failures and continues subsequent setup actions', async () => {
         moderationService.updateSettings.mockRejectedValueOnce(new Error('moderation-down'))
 
