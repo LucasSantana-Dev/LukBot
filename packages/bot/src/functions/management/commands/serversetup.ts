@@ -9,9 +9,9 @@ import {
     type Role,
     type OverwriteResolvable,
 } from 'discord.js'
-import Command from '../../../models/Command.js'
+import Command from '../../../models/Command'
 import { infoLog, errorLog } from '@lucky/shared/utils'
-import { interactionReply } from '../../../utils/general/interactionReply.js'
+import { interactionReply } from '../../../utils/general/interactionReply'
 
 interface ChannelDef {
     name: string
@@ -323,7 +323,9 @@ export default new Command({
             progress.push('🎉 **Forge Space server setup complete!**')
             progress.push('')
             progress.push('**Next steps:**')
-            progress.push('• Set the server icon and banner')
+            progress.push(
+                '• Keep your current server icon/banner (Lucky preserves guild identity)',
+            )
             progress.push('• Configure community features in Server Settings')
             progress.push('• Set up verification level')
             progress.push('• Post first announcement in #announcements')

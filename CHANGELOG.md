@@ -60,6 +60,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (General Information, Installation, and Activities URL Mappings)
 - `/install` now proxies to `/api/auth/discord` so the public install URL
   reliably returns Discord OAuth redirect (`302`) on production
+- `/serversetup` now explicitly preserves managed server visual identity and
+  does not modify guild icon/splash/banner
 
 ### Changed
 

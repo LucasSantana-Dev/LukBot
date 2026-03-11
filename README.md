@@ -266,6 +266,13 @@ Set `UNLEASH_URL` and `UNLEASH_API_TOKEN` for Unleash, or use `FEATURE_DOWNLOAD_
 ### Twitch
 `/twitch add` `/twitch remove` `/twitch list`
 
+### Server Setup
+`/serversetup template:forge-space`
+
+Setup behavior:
+- Creates the base Forge Space channel/role layout and welcome embed
+- Preserves existing guild visual identity (icon, splash, and banner)
+
 ## Contributing
 
 1. Fork and create a feature branch
