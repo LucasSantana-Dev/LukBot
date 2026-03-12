@@ -62,14 +62,19 @@ describe('useGuildSelection', () => {
         })
     })
 
-    test('retries initial fetch once after auth-ready state when first result has auth error', async () => {
+    test('retries once after auth error appears after first auth-ready fetch', async () => {
+        const hook = renderHook(() => useGuildSelection())
+
+        await waitFor(() => {
+            expect(fetchGuilds).toHaveBeenCalledTimes(1)
+        })
+
         guildState.guildLoadError = {
             kind: 'auth',
             message: 'Session expired',
             status: 401,
         }
-
-        renderHook(() => useGuildSelection())
+        hook.rerender()
 
         await waitFor(() => {
             expect(fetchGuilds).toHaveBeenCalledTimes(2)

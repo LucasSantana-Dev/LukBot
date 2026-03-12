@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils'
 import { hasModuleAccess } from '@/lib/rbac'
 import type { Guild, ModuleKey } from '@/types'
 import type { GuildLoadErrorState } from '@/stores/guildStore'
+import { api } from '@/services/api'
 
 interface NavItem {
     path: string
@@ -182,6 +183,7 @@ function ServerSelector({
     const emptyStateText = isLoading
         ? 'Loading servers...'
         : 'No accessible servers found'
+    const discordLoginUrl = api.auth.getDiscordLoginUrl()
     const guildLoadMessage = guildLoadError
         ? getGuildLoadMessage(guildLoadError)
         : null
@@ -267,7 +269,7 @@ function ServerSelector({
                                                         guildLoadError.kind ===
                                                             'forbidden') && (
                                                         <a
-                                                            href='/api/auth/discord'
+                                                            href={discordLoginUrl}
                                                             className='lucky-focus-visible rounded-lg border border-lucky-border px-2.5 py-1.5 text-xs text-lucky-text-secondary transition-colors hover:text-lucky-text-primary'
                                                         >
                                                             Re-authenticate

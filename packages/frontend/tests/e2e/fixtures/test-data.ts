@@ -47,6 +47,7 @@ export const MOCK_GUILDS = [
         permissions: '2147483647',
         features: ['COMMUNITY', 'NEWS'],
         hasBot: true,
+        botAdded: true,
         effectiveAccess: MANAGE_EFFECTIVE_ACCESS,
         canManageRbac: true,
         botInviteUrl: undefined,
@@ -68,6 +69,7 @@ export const MOCK_GUILDS = [
         permissions: '268435456',
         features: [],
         hasBot: false,
+        botAdded: false,
         effectiveAccess: MANAGE_EFFECTIVE_ACCESS,
         canManageRbac: true,
         botInviteUrl:
@@ -90,6 +92,7 @@ export const MOCK_GUILDS = [
         permissions: '2147483647',
         features: ['VERIFIED'],
         hasBot: true,
+        botAdded: true,
         effectiveAccess: MANAGE_EFFECTIVE_ACCESS,
         canManageRbac: true,
         botInviteUrl: undefined,

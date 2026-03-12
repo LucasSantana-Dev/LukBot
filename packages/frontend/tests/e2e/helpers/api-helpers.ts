@@ -289,7 +289,7 @@ export async function setupMockApiResponses(page: Page): Promise<void> {
         await mockModerationStats(page, guild.id)
         await mockModerationCases(page, guild.id)
         await mockServerToggles(page, guild.id)
+        await mockToggleUpdate(page, false, guild.id)
     }
-    await mockToggleUpdate(page, false, MOCK_GUILDS[0].id)
     await mockToggleUpdate(page, true)
 }

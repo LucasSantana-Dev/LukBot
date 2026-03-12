@@ -282,6 +282,21 @@ describe('GuildAccessService', () => {
         expect(result[0].id).toBe('101')
     })
 
+    test('listAuthorizedGuilds returns retryable error when all context lookups fail', async () => {
+        const guilds = [makeGuild('101'), makeGuild('202')]
+
+        mockGetUserGuilds.mockResolvedValue(guilds)
+        mockHasBotInGuild.mockResolvedValue(true)
+        mockResolveEffectiveAccess.mockRejectedValue(
+            new Error('rbac dependency unavailable'),
+        )
+
+        await expect(guildAccessService.listAuthorizedGuilds(SESSION)).rejects.toMatchObject({
+            statusCode: 502,
+            message: 'Unable to resolve server access right now. Please retry.',
+        })
+    })
+
     test('resolveGuildContext falls back to empty member context when guild lookup fails', async () => {
         const guild = makeGuild('808')
         const moderationViewAccess = {

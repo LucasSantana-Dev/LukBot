@@ -7,7 +7,6 @@ vi.mock('@/services/api', () => ({
     api: {
         guilds: {
             list: vi.fn(),
-            get: vi.fn(),
             getMe: vi.fn(),
             getSettings: vi.fn(),
             getListing: vi.fn(),
@@ -37,10 +36,7 @@ const MANAGE_ACCESS = {
     integrations: 'manage',
 } as const
 
-function setupSelectedGuildApiMocks(guildId: string, guild?: Guild) {
-    vi.mocked(api.guilds.get).mockResolvedValue({
-        data: { guild: guild ?? mockGuild({ id: guildId }) },
-    } as never)
+function setupSelectedGuildApiMocks(guildId: string) {
     vi.mocked(api.guilds.getSettings).mockResolvedValue({
         data: { settings: null },
     } as never)
@@ -66,8 +62,9 @@ describe('guildStore', () => {
             guilds: [],
             selectedGuild: null,
             selectedGuildId: null,
+            currentGuildRequestId: 0,
             isLoading: false,
-            hasFetchedGuilds: false,
+            guildLoadError: null,
             memberContext: null,
             memberContextLoading: false,
             serverSettings: null,
@@ -88,7 +85,6 @@ describe('guildStore', () => {
 
             expect(useGuildStore.getState().guilds).toHaveLength(2)
             expect(useGuildStore.getState().isLoading).toBe(false)
-            expect(useGuildStore.getState().hasFetchedGuilds).toBe(true)
         })
 
         test('should auto-select first authorized guild', async () => {
@@ -130,27 +126,6 @@ describe('guildStore', () => {
 
             expect(useGuildStore.getState().guilds).toEqual([])
             expect(useGuildStore.getState().isLoading).toBe(false)
-            expect(useGuildStore.getState().hasFetchedGuilds).toBe(true)
-        })
-
-        test('should re-sync selected guild by selectedGuildId after refresh', async () => {
-            const staleGuild = mockGuild({ id: '1', name: 'Stale Name' })
-            const refreshedGuild = mockGuild({ id: '1', name: 'Fresh Name' })
-            useGuildStore.setState({
-                selectedGuild: staleGuild,
-                selectedGuildId: staleGuild.id,
-            })
-
-            vi.mocked(api.guilds.list).mockResolvedValue({
-                data: { guilds: [refreshedGuild] },
-            } as never)
-            setupSelectedGuildApiMocks(refreshedGuild.id, refreshedGuild)
-
-            await useGuildStore.getState().fetchGuilds()
-
-            expect(useGuildStore.getState().selectedGuild?.name).toBe(
-                'Fresh Name',
-            )
         })
 
         test('should classify auth failures', async () => {
@@ -251,6 +226,45 @@ describe('guildStore', () => {
 
             expect(useGuildStore.getState().selectedGuildId).toBe(selectedGuild.id)
             expect(useGuildStore.getState().selectedGuild?.name).toBe('Selected guild')
+        })
+
+        test('should ignore stale fetch failures when a newer request succeeds', async () => {
+            let rejectFirstRequest: ((error: unknown) => void) | null = null
+            let resolveSecondRequest:
+                | ((value: { data: { guilds: Guild[] } }) => void)
+                | null = null
+
+            vi.mocked(api.guilds.list)
+                .mockImplementationOnce(
+                    () =>
+                        new Promise((_resolve, reject) => {
+                            rejectFirstRequest = reject
+                        }) as never,
+                )
+                .mockImplementationOnce(
+                    () =>
+                        new Promise((resolve) => {
+                            resolveSecondRequest = resolve
+                        }) as never,
+                )
+
+            const firstFetch = useGuildStore.getState().fetchGuilds()
+            const secondFetch = useGuildStore.getState().fetchGuilds()
+
+            expect(resolveSecondRequest).not.toBeNull()
+            expect(rejectFirstRequest).not.toBeNull()
+
+            resolveSecondRequest!({
+                data: { guilds: [mockGuild({ id: 'latest' })] },
+            })
+            await secondFetch
+
+            rejectFirstRequest!(new ApiError(502, 'Discord API unavailable'))
+            await firstFetch
+
+            const state = useGuildStore.getState()
+            expect(state.guilds.map((guild) => guild.id)).toEqual(['latest'])
+            expect(state.guildLoadError).toBeNull()
         })
     })
 

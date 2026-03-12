@@ -90,6 +90,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Guild auto-selection now picks the first server where Lucky is already added;
   when no server has Lucky installed, dashboard keeps no selected server and
   shows explicit selection guidance
+- Refs: PR `#169`
 
 ### Changed
 

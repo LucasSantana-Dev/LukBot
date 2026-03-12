@@ -54,6 +54,7 @@ interface GuildState {
     guilds: Guild[]
     selectedGuild: Guild | null
     selectedGuildId: string | null
+    currentGuildRequestId: number
     isLoading: boolean
     guildLoadError: GuildLoadErrorState | null
     memberContext: GuildMemberContext | null
@@ -73,6 +74,7 @@ export const useGuildStore = create<GuildState>((set, get) => ({
     guilds: [],
     selectedGuild: null,
     selectedGuildId: null,
+    currentGuildRequestId: 0,
     isLoading: false,
     guildLoadError: null,
     memberContext: null,
@@ -81,9 +83,18 @@ export const useGuildStore = create<GuildState>((set, get) => ({
     serverListing: null,
 
     fetchGuilds: async () => {
-        set({ isLoading: true, guildLoadError: null })
+        const requestId = get().currentGuildRequestId + 1
+        set({
+            isLoading: true,
+            guildLoadError: null,
+            currentGuildRequestId: requestId,
+        })
         try {
             const response = await api.guilds.list()
+            if (requestId !== get().currentGuildRequestId) {
+                return
+            }
+
             const guilds = response.data.guilds
             const currentSelectedGuildId = get().selectedGuildId
             const nextSelectedGuild = currentSelectedGuildId
@@ -108,6 +119,9 @@ export const useGuildStore = create<GuildState>((set, get) => ({
                 get().selectGuild(firstWithBot)
             }
         } catch (error) {
+            if (requestId !== get().currentGuildRequestId) {
+                return
+            }
             set({
                 guilds: [],
                 selectedGuild: null,

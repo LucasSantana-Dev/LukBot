@@ -174,9 +174,18 @@ class GuildAccessService {
             }),
         )
 
-        const authorizedContexts = contexts.filter(
-            (context): context is GuildAccessContext =>
-                context !== null && this.isAuthorized(context),
+        const resolvedContexts = contexts.filter(
+            (context): context is GuildAccessContext => context !== null,
+        )
+        if (guilds.length > 0 && resolvedContexts.length === 0) {
+            throw new AppError(
+                502,
+                'Unable to resolve server access right now. Please retry.',
+            )
+        }
+
+        const authorizedContexts = resolvedContexts.filter((context) =>
+            this.isAuthorized(context),
         )
         const authorizedContextByGuildId = new Map(
             authorizedContexts.map((context) => [context.guildId, context]),
