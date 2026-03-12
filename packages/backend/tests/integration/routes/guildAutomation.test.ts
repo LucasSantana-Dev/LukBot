@@ -4,6 +4,7 @@ import express from 'express'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { setupGuildAutomationRoutes } from '../../../src/routes/guildAutomation'
 import { errorHandler } from '../../../src/middleware/errorHandler'
+import { AppError } from '../../../src/errors/AppError'
 import { sessionService } from '../../../src/services/SessionService'
 import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
 
@@ -210,6 +211,160 @@ describe('Guild Automation Routes', () => {
                 runType: 'apply',
             },
         )
+    })
+
+    test('POST capture delegates to shared automation service', async () => {
+        const mockedService = guildAutomationService as jest.Mocked<
+            typeof guildAutomationService
+        >
+        mockedService.recordCapture.mockResolvedValue({
+            manifestId: 'manifest-1',
+            runId: 'run-capture-1',
+        } as any)
+
+        const response = await request(app)
+            .post('/api/guilds/111111111111111111/automation/capture')
+            .set('Cookie', ['sessionId=valid_session_id'])
+            .send({
+                version: 1,
+                guild: { id: '111111111111111111' },
+                source: 'manual',
+            })
+            .expect(201)
+
+        expect(mockedService.recordCapture).toHaveBeenCalledWith(
+            '111111111111111111',
+            expect.any(Object),
+            MOCK_SESSION_DATA.userId,
+        )
+        expect(response.body).toEqual({
+            manifestId: 'manifest-1',
+            runId: 'run-capture-1',
+        })
+    })
+
+    test('POST reconcile delegates to apply-run with reconcile type', async () => {
+        const mockedService = guildAutomationService as jest.Mocked<
+            typeof guildAutomationService
+        >
+        mockedService.createApplyRun.mockResolvedValue({
+            runId: 'run-reconcile-1',
+            status: 'completed',
+            blockedByProtected: false,
+            plan: {
+                operations: [],
+                protectedOperations: [],
+                summary: { total: 0, safe: 0, protected: 0 },
+            },
+        } as any)
+
+        await request(app)
+            .post('/api/guilds/111111111111111111/automation/reconcile')
+            .set('Cookie', ['sessionId=valid_session_id'])
+            .send({ allowProtected: false })
+            .expect(200)
+
+        expect(mockedService.createApplyRun).toHaveBeenCalledWith(
+            '111111111111111111',
+            {
+                actualState: undefined,
+                initiatedBy: MOCK_SESSION_DATA.userId,
+                allowProtected: false,
+                runType: 'reconcile',
+            },
+        )
+    })
+
+    test('POST cutover delegates completeChecklist option', async () => {
+        const mockedService = guildAutomationService as jest.Mocked<
+            typeof guildAutomationService
+        >
+        mockedService.runCutover.mockResolvedValue({
+            runId: 'run-cutover-1',
+            status: 'completed',
+            checklistComplete: true,
+        } as any)
+
+        await request(app)
+            .post('/api/guilds/111111111111111111/automation/cutover')
+            .set('Cookie', ['sessionId=valid_session_id'])
+            .send({ completeChecklist: true })
+            .expect(200)
+
+        expect(mockedService.runCutover).toHaveBeenCalledWith(
+            '111111111111111111',
+            {
+                initiatedBy: MOCK_SESSION_DATA.userId,
+                completeChecklist: true,
+            },
+        )
+    })
+
+    test('POST apply maps lock precondition to 400', async () => {
+        const mockedService = guildAutomationService as jest.Mocked<
+            typeof guildAutomationService
+        >
+        mockedService.createApplyRun.mockRejectedValue(
+            new Error('Another automation apply operation is already running'),
+        )
+
+        const response = await request(app)
+            .post('/api/guilds/111111111111111111/automation/apply')
+            .set('Cookie', ['sessionId=valid_session_id'])
+            .send({})
+            .expect(400)
+
+        expect(response.body).toEqual({
+            error: 'Another automation apply operation is already running',
+        })
+    })
+
+    test('POST plan keeps AppError responses unchanged', async () => {
+        const mockedService = guildAutomationService as jest.Mocked<
+            typeof guildAutomationService
+        >
+        mockedService.createPlan.mockRejectedValue(
+            AppError.badRequest('Plan payload rejected'),
+        )
+
+        const response = await request(app)
+            .post('/api/guilds/111111111111111111/automation/plan')
+            .set('Cookie', ['sessionId=valid_session_id'])
+            .send({})
+            .expect(400)
+
+        expect(response.body).toEqual({
+            error: 'Plan payload rejected',
+        })
+    })
+
+    test('POST cutover maps non-error throw to generic 500', async () => {
+        const mockedService = guildAutomationService as jest.Mocked<
+            typeof guildAutomationService
+        >
+        mockedService.runCutover.mockRejectedValue('unknown-error')
+
+        await request(app)
+            .post('/api/guilds/111111111111111111/automation/cutover')
+            .set('Cookie', ['sessionId=valid_session_id'])
+            .send({})
+            .expect(500)
+    })
+
+    test('POST plan returns 401 when session does not include user id', async () => {
+        const mockedSessionService = sessionService as jest.Mocked<
+            typeof sessionService
+        >
+        mockedSessionService.getSession.mockResolvedValue({
+            ...MOCK_SESSION_DATA,
+            userId: '',
+        } as any)
+
+        await request(app)
+            .post('/api/guilds/111111111111111111/automation/plan')
+            .set('Cookie', ['sessionId=valid_session_id'])
+            .send({})
+            .expect(401)
     })
 
     test('GET status returns status and recent runs', async () => {
