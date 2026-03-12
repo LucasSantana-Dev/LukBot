@@ -116,9 +116,9 @@ packages/
 - Music player with real-time SSE updates
 - Feature toggle management (Unleash + env var fallback)
 - Dashboard API contract uses canonical
-  `/api/guilds/:guildId/automessages`; legacy `/auto-messages` is intentionally
-  unsupported, and stale guild `/listing` calls were removed from the frontend
-  client/store surface
+  `/api/guilds/:guildId/automessages`; legacy
+  `/api/guilds/:guildId/auto-messages` is intentionally unsupported, and stale
+  guild `/listing` calls were removed from the frontend client/store surface
 
 ### Backend Quality
 - Zod input validation on all routes

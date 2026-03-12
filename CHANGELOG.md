@@ -62,8 +62,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (PR #188 follow-up)
 - Removed stale frontend guild `/listing` client/store contract and aligned
   dashboard route expectations to canonical
-  `/api/guilds/:guildId/automessages` (legacy `/auto-messages` remains
-  intentionally unmapped with `404`)
+  `/api/guilds/:guildId/automessages` (legacy
+  `/api/guilds/:guildId/auto-messages` remains intentionally unmapped with
+  `404`)
 - Fixed Discord Discovery carousel URL stability by documenting canonical media
   URLs on `main` (instead of ephemeral feature branch refs that can return 404)
 - Bot `/autoplay` command now resolves guild queue from player node cache when

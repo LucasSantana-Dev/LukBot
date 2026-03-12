@@ -117,11 +117,15 @@ describe('Auto Message Routes Integration', () => {
         })
 
         test('should keep legacy /auto-messages path unmapped', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
             const response = await request(app)
                 .get('/api/guilds/111111111111111111/auto-messages')
                 .expect(404)
 
             expect(response.body).toEqual({})
+            expect(mockSessionService.getSession).not.toHaveBeenCalled()
         })
 
         test('should return 500 on service error', async () => {
