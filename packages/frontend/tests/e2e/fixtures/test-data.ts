@@ -51,15 +51,6 @@ export const MOCK_GUILDS = [
         effectiveAccess: MANAGE_EFFECTIVE_ACCESS,
         canManageRbac: true,
         botInviteUrl: undefined,
-        effectiveAccess: {
-            overview: 'manage',
-            settings: 'manage',
-            moderation: 'manage',
-            automation: 'manage',
-            music: 'manage',
-            integrations: 'manage',
-        },
-        canManageRbac: true,
     },
     {
         id: '222222222222222222',
@@ -74,15 +65,6 @@ export const MOCK_GUILDS = [
         canManageRbac: true,
         botInviteUrl:
             'https://discord.com/api/oauth2/authorize?client_id=962198089161134131&permissions=8&scope=bot%20applications.commands&guild_id=222222222222222222',
-        effectiveAccess: {
-            overview: 'manage',
-            settings: 'manage',
-            moderation: 'manage',
-            automation: 'manage',
-            music: 'manage',
-            integrations: 'manage',
-        },
-        canManageRbac: true,
     },
     {
         id: '333333333333333333',
@@ -96,15 +78,6 @@ export const MOCK_GUILDS = [
         effectiveAccess: MANAGE_EFFECTIVE_ACCESS,
         canManageRbac: true,
         botInviteUrl: undefined,
-        effectiveAccess: {
-            overview: 'manage',
-            settings: 'manage',
-            moderation: 'manage',
-            automation: 'manage',
-            music: 'manage',
-            integrations: 'manage',
-        },
-        canManageRbac: true,
     },
 ]
 
