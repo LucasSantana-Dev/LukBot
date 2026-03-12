@@ -3,7 +3,10 @@ import type { DiscordGuild } from '../../../src/services/DiscordOAuthService'
 import type { SessionData } from '../../../src/services/SessionService'
 
 const mockGetUserGuilds = jest.fn<Promise<DiscordGuild[]>, [string]>()
-const mockHasAdminPermission = jest.fn<boolean, [string]>()
+const mockHasAdminPermission = jest.fn<
+    boolean,
+    [string | null | undefined, string | null | undefined]
+>()
 
 const mockHasBotInGuild = jest.fn<Promise<boolean>, [string]>()
 const mockGetGuildMemberContext = jest.fn<
@@ -22,7 +25,9 @@ const mockHasAccess = jest.fn<
 jest.mock('../../../src/services/DiscordOAuthService', () => ({
     discordOAuthService: {
         getUserGuilds: (...args: [string]) => mockGetUserGuilds(...args),
-        hasAdminPermission: (...args: [string]) =>
+        hasAdminPermission: (
+            ...args: [string | null | undefined, string | null | undefined]
+        ) =>
             mockHasAdminPermission(...args),
     },
 }))
@@ -170,6 +175,32 @@ describe('GuildAccessService', () => {
         expect(result[0].canManageRbac).toBe(true)
         expect(result[1].canManageRbac).toBe(false)
         expect(result[1].effectiveAccess.moderation).toBe('view')
+    })
+
+    test('listAuthorizedGuilds skips guilds that fail context resolution', async () => {
+        const guilds = [makeGuild('101', { owner: true }), makeGuild('202')]
+        const adminAccess = {
+            overview: 'manage',
+            settings: 'manage',
+            moderation: 'manage',
+            automation: 'manage',
+            music: 'manage',
+            integrations: 'manage',
+        }
+
+        mockGetUserGuilds.mockResolvedValue(guilds)
+        mockHasBotInGuild.mockImplementation(async (guildId: string) => {
+            if (guildId === '202') {
+                throw new Error('Discord guild fetch failed')
+            }
+            return true
+        })
+        mockResolveEffectiveAccess.mockResolvedValue(adminAccess)
+
+        const result = await guildAccessService.listAuthorizedGuilds(SESSION)
+
+        expect(result.map((guild) => guild.id)).toEqual(['101'])
+        expect(mockEnrichGuildsWithBotStatus).toHaveBeenCalledWith([guilds[0]])
     })
 
     test('resolveGuildContext returns null when guild is not in user guild list', async () => {

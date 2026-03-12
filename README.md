@@ -86,8 +86,9 @@ packages/
 - Neo-editorial shell with responsive sidebar and contextual page framing
 - Dashboard, Servers, and Last.fm pages aligned to shared status/empty-state primitives
 - Module/command toggle per server
-- Guild RBAC by Discord role (`view`/`manage`) with deny-by-default for
-  non-admin users
+- Guild RBAC by Discord role (`view`/`manage`) with hybrid fallback:
+  owners/admin/manage-server users keep baseline access when grants are absent,
+  while role grants control non-admin module access
 - Sidebar identity resolution chain: `nick > globalName > username`
 - Dashboard guild metrics now use live bot/API counts, rendering unknown values
   as `—` instead of `0`
@@ -181,6 +182,11 @@ deployments should keep `VITE_API_BASE_URL` aligned with the public backend.
 Authenticated frontend shell routes now bootstrap guild selection globally, so
 the server selector is populated immediately after login without requiring a
 visit to `/servers` first.
+Server selector empty/error states are split:
+- `No accessible servers found` means authentication worked but no authorized
+  guilds matched your access policy.
+- `Could not load servers` means auth/session/network/upstream fetch failed;
+  use `Retry` or `Re-authenticate` from the selector.
 Without `VITE_API_BASE_URL`, frontend uses same-origin `/api` for
 `*.lucassantana.tech` hosts and `api.luk-homeserver.com.br` for
 `*.luk-homeserver.com.br`.

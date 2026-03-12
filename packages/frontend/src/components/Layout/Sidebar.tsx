@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
+    AlertTriangle,
     ChevronDown,
     History,
     LayoutDashboard,
@@ -146,8 +147,15 @@ const navSections: NavSection[] = [
 function Sidebar() {
     const location = useLocation()
     const { user, logout } = useAuthStore()
-    const { guilds, selectedGuild, selectGuild, memberContext } =
-        useGuildStore()
+    const {
+        guilds,
+        selectedGuild,
+        selectGuild,
+        memberContext,
+        guildLoadError,
+        fetchGuilds,
+        isLoading,
+    } = useGuildStore()
     const [mobileOpen, setMobileOpen] = useState(false)
     const [serverDropdownOpen, setServerDropdownOpen] = useState(false)
 
@@ -261,9 +269,60 @@ function Sidebar() {
                                 <ScrollArea className='max-h-56'>
                                     {guilds.length === 0 ? (
                                         <div className='space-y-2 px-3 py-4 text-center'>
-                                            <p className='type-body-sm text-lucky-text-tertiary'>
-                                                No accessible servers found
-                                            </p>
+                                            {guildLoadError ? (
+                                                <>
+                                                    <div className='mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full border border-lucky-border'>
+                                                        <AlertTriangle className='h-4 w-4 text-lucky-text-secondary' />
+                                                    </div>
+                                                    <p className='type-body-sm text-lucky-text-primary'>
+                                                        Could not load servers
+                                                    </p>
+                                                    <p className='type-body-sm text-lucky-text-tertiary'>
+                                                        {guildLoadError.kind ===
+                                                        'auth'
+                                                            ? 'Your session expired. Please sign in again.'
+                                                            : guildLoadError.kind ===
+                                                                'forbidden'
+                                                              ? 'Discord access is missing required scope.'
+                                                              : guildLoadError.kind ===
+                                                                  'network'
+                                                                ? 'Network connection failed. Check connectivity and retry.'
+                                                                : guildLoadError.message}
+                                                    </p>
+                                                    <div className='mt-3 flex items-center justify-center gap-2'>
+                                                        <button
+                                                            type='button'
+                                                            onClick={() => {
+                                                                Promise.resolve(
+                                                                    fetchGuilds(),
+                                                                ).catch(
+                                                                    () => {},
+                                                                )
+                                                            }}
+                                                            className='lucky-focus-visible rounded-lg border border-lucky-border px-2.5 py-1.5 text-xs text-lucky-text-secondary transition-colors hover:text-lucky-text-primary'
+                                                        >
+                                                            Retry
+                                                        </button>
+                                                        {(guildLoadError.kind ===
+                                                            'auth' ||
+                                                            guildLoadError.kind ===
+                                                                'forbidden') && (
+                                                            <a
+                                                                href='/api/auth/discord'
+                                                                className='lucky-focus-visible rounded-lg border border-lucky-border px-2.5 py-1.5 text-xs text-lucky-text-secondary transition-colors hover:text-lucky-text-primary'
+                                                            >
+                                                                Re-authenticate
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <p className='type-body-sm text-lucky-text-tertiary'>
+                                                    {isLoading
+                                                        ? 'Loading servers...'
+                                                        : 'No accessible servers found'}
+                                                </p>
+                                            )}
                                         </div>
                                     ) : (
                                         guilds.map((guild) => (

@@ -1,6 +1,7 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { useGuildStore } from './guildStore'
 import type { Guild } from '@/types'
+import { ApiError } from '@/services/ApiError'
 
 vi.mock('@/services/api', () => ({
     api: {
@@ -71,7 +72,7 @@ describe('guildStore', () => {
             memberContextLoading: false,
             serverSettings: null,
             serverListing: null,
-        })
+        } as never)
         vi.clearAllMocks()
     })
 
@@ -135,6 +136,57 @@ describe('guildStore', () => {
             expect(useGuildStore.getState().selectedGuild?.name).toBe(
                 'Fresh Name',
             )
+        })
+
+        test('should classify auth failures', async () => {
+            vi.mocked(api.guilds.list).mockRejectedValue(
+                new ApiError(401, 'Session expired'),
+            )
+
+            await useGuildStore.getState().fetchGuilds()
+
+            const state = useGuildStore.getState() as unknown as {
+                guildLoadError?: { kind: string; status?: number }
+            }
+            expect(state.guildLoadError).toEqual({
+                kind: 'auth',
+                message: 'Session expired',
+                status: 401,
+            })
+        })
+
+        test('should classify network failures', async () => {
+            vi.mocked(api.guilds.list).mockRejectedValue(
+                new ApiError(0, 'Unable to connect to the server'),
+            )
+
+            await useGuildStore.getState().fetchGuilds()
+
+            const state = useGuildStore.getState() as unknown as {
+                guildLoadError?: { kind: string; status?: number }
+            }
+            expect(state.guildLoadError).toEqual({
+                kind: 'network',
+                message: 'Unable to connect to the server',
+                status: 0,
+            })
+        })
+
+        test('should classify upstream failures', async () => {
+            vi.mocked(api.guilds.list).mockRejectedValue(
+                new ApiError(502, 'Discord API unavailable'),
+            )
+
+            await useGuildStore.getState().fetchGuilds()
+
+            const state = useGuildStore.getState() as unknown as {
+                guildLoadError?: { kind: string; status?: number }
+            }
+            expect(state.guildLoadError).toEqual({
+                kind: 'upstream',
+                message: 'Discord API unavailable',
+                status: 502,
+            })
         })
     })
 

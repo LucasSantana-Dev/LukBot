@@ -28,6 +28,10 @@ vi.mock('./pages/TwitchNotifications', () => ({
     default: () => <h1>Twitch Notifications Page</h1>,
 }))
 
+vi.mock('./pages/Features', () => ({
+    default: () => <h1>Features Page</h1>,
+}))
+
 type AuthState = {
     isAuthenticated: boolean
     isLoading: boolean
@@ -203,5 +207,34 @@ describe('App authenticated routing', () => {
                 'You do not have permission to view the moderation module for this server.',
             ),
         ).toBeInTheDocument()
+    })
+
+    test('guards /features route with automation module access', async () => {
+        mockAuthStore({ isAuthenticated: true })
+        mockGuildStore({
+            selectedGuild: {
+                id: '123',
+                name: 'Guild',
+                effectiveAccess: {
+                    overview: 'manage',
+                    settings: 'manage',
+                    moderation: 'manage',
+                    automation: 'none',
+                    music: 'none',
+                    integrations: 'none',
+                },
+            },
+            memberContextLoading: false,
+        })
+
+        renderAt('/features')
+
+        expect(await screen.findByText('Access denied')).toBeInTheDocument()
+        expect(
+            screen.getByText(
+                'You do not have permission to view the automation module for this server.',
+            ),
+        ).toBeInTheDocument()
+        expect(screen.queryByText('Features Page')).not.toBeInTheDocument()
     })
 })
