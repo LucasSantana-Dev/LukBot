@@ -228,6 +228,60 @@ describe('guildStore', () => {
             expect(useGuildStore.getState().selectedGuild?.name).toBe('Selected guild')
         })
 
+        test('clears guild-scoped state when selected guild is removed and no bot-added guild remains', async () => {
+            const selectedGuild = mockGuild({ id: 'selected', name: 'Selected guild' })
+            useGuildStore.setState({
+                selectedGuild,
+                selectedGuildId: selectedGuild.id,
+                memberContext: {
+                    guildId: selectedGuild.id,
+                    nickname: 'Stale nick',
+                    username: 'stale-user',
+                    globalName: null,
+                    roleIds: ['role-a'],
+                    effectiveAccess: MANAGE_ACCESS,
+                    canManageRbac: true,
+                },
+                memberContextLoading: true,
+                serverSettings: {
+                    nickname: 'Stale settings',
+                    commandPrefix: '!',
+                    managerRoles: [],
+                    updatesChannel: '',
+                    timezone: 'UTC',
+                    disableWarnings: false,
+                },
+                serverListing: {
+                    title: 'Stale listing',
+                    description: 'Stale description',
+                    tags: [],
+                    websiteUrl: '',
+                    supportUrl: '',
+                    inviteUrl: '',
+                    accentColor: '#000000',
+                },
+            } as never)
+
+            vi.mocked(api.guilds.list).mockResolvedValue({
+                data: {
+                    guilds: [
+                        mockGuild({ id: '1', botAdded: false }),
+                        mockGuild({ id: '2', botAdded: false }),
+                    ],
+                },
+            } as never)
+
+            await useGuildStore.getState().fetchGuilds()
+
+            const state = useGuildStore.getState()
+            expect(state.selectedGuildId).toBeNull()
+            expect(state.memberContext).toBeNull()
+            expect(state.memberContextLoading).toBe(false)
+            expect(state.serverSettings).toBeNull()
+            expect(state.serverListing).toBeNull()
+            expect(vi.mocked(api.guilds.getMe)).not.toHaveBeenCalled()
+        })
+
         test('should ignore stale fetch failures when a newer request succeeds', async () => {
             let rejectFirstRequest: ((error: unknown) => void) | null = null
             let resolveSecondRequest:
