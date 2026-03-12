@@ -26,6 +26,33 @@ const autoModSettingsBody = z
     })
     .strict()
 
+const guildAutomationManifestBody = z
+    .object({
+        version: z.number().int().min(1).max(100),
+        guild: z.object({
+            id: z.string().regex(/^\d{17,20}$/),
+            name: z.string().max(100).optional(),
+        }),
+        onboarding: z.record(z.unknown()).optional(),
+        roles: z.record(z.unknown()).optional(),
+        moderation: z.record(z.unknown()).optional(),
+        automessages: z.record(z.unknown()).optional(),
+        reactionroles: z.record(z.unknown()).optional(),
+        commandaccess: z.record(z.unknown()).optional(),
+        parity: z.record(z.unknown()).optional(),
+        source: z.enum(['discord-capture', 'manual']).optional(),
+        capturedAt: z.string().datetime().optional(),
+    })
+    .strict()
+
+const guildAutomationRunBody = z
+    .object({
+        actualState: guildAutomationManifestBody.optional(),
+        allowProtected: z.boolean().optional(),
+        completeChecklist: z.boolean().optional(),
+    })
+    .strict()
+
 const createCommandBody = z.object({
     name: z
         .string()
@@ -66,6 +93,8 @@ export const managementSchemas = {
     guildIdParam,
     commandNameParam,
     autoModSettingsBody,
+    guildAutomationManifestBody,
+    guildAutomationRunBody,
     createCommandBody,
     updateCommandBody,
     logsQuery,
