@@ -173,6 +173,8 @@ npm run format          # Prettier
 `db:*` scripts now pin Prisma config explicitly via
 `--config prisma/prisma.config.ts`, so local runs no longer depend on implicit
 config discovery.
+`npm run db:generate` now injects a safe fallback `DATABASE_URL` only for
+client generation, so CI build jobs can run `build` without a database secret.
 
 `npm run db:migrate` runs a guarded wrapper:
 - default path: `prisma migrate dev --config prisma/prisma.config.ts`
