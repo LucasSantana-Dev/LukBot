@@ -46,8 +46,8 @@ function parseNowPlaying(
             const separatorIndex = nowPlaying.indexOf(separator)
             if (separatorIndex <= 0) continue
 
-            const title = nowPlaying.slice(0, separatorIndex).trim()
-            const artist = nowPlaying
+            const artist = nowPlaying.slice(0, separatorIndex).trim()
+            const title = nowPlaying
                 .slice(separatorIndex + separator.length)
                 .trim()
 

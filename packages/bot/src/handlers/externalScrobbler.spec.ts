@@ -106,7 +106,7 @@ describe('externalScrobbler', () => {
     it('parses now-playing line and updates Last.fm for voice members', async () => {
         const { guild, handler } = createHarness('guild-1')
 
-        await handler(createMessage('**Now playing: My Song – My Artist**', guild))
+        await handler(createMessage('**Now playing: My Artist – My Song**', guild))
 
         expect(updateNowPlayingMock).toHaveBeenCalledWith(
             'My Artist',
@@ -126,8 +126,8 @@ describe('externalScrobbler', () => {
 
         const { guild, handler } = createHarness('guild-2')
 
-        await handler(createMessage('Now playing: First Song — First Artist', guild))
-        await handler(createMessage('Now playing: Second Song - Second Artist', guild))
+        await handler(createMessage('Now playing: First Artist — First Song', guild))
+        await handler(createMessage('Now playing: Second Artist - Second Song', guild))
 
         expect(scrobbleMock).toHaveBeenCalledWith(
             'First Artist',

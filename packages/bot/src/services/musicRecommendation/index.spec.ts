@@ -73,4 +73,21 @@ describe('MusicRecommendationService', () => {
         expect(result).toEqual(expected)
         expect(generateHistoryBasedRecommendationsMock).toHaveBeenCalledTimes(1)
     })
+
+    it('returns empty array when history recommendations reject', async () => {
+        const service = new MusicRecommendationService()
+        generateHistoryBasedRecommendationsMock.mockRejectedValue(
+            new Error('history boom'),
+        )
+
+        const result = await service.getContextualRecommendations({
+            guildId: 'guild-3',
+            recentHistory: [{ id: 'history-track' } as Track],
+            availableTracks: [{ id: 'candidate-track' } as Track],
+            config: service.getConfig(),
+        })
+
+        expect(result).toEqual([])
+        expect(errorLogMock).toHaveBeenCalled()
+    })
 })
