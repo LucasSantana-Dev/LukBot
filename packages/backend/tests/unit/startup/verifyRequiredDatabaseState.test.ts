@@ -35,6 +35,17 @@ describe('verifyRequiredDatabaseState', () => {
         )
     })
 
+    test('uses default table name when prisma error omits meta.table', async () => {
+        countMock.mockRejectedValue({
+            code: 'P2021',
+            meta: {},
+        })
+
+        await expect(verifyRequiredDatabaseState()).rejects.toThrow(
+            'Required database relation "guild_role_grants" is missing. Run migrations before starting backend.',
+        )
+    })
+
     test('rethrows unknown prisma errors unchanged', async () => {
         const error = new Error('database offline')
         countMock.mockRejectedValue(error)

@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import AutoModPage from './AutoMod'
 import { api } from '@/services/api'
 import { useGuildStore } from '@/stores/guildStore'
-import type { AutoModSettings } from '@/types'
+import type { AutoModSettings, AutoModTemplate } from '@/types'
 
 vi.mock('@/services/api')
 vi.mock('@/stores/guildStore')
@@ -42,6 +42,15 @@ const mockSettings: AutoModSettings = {
     exemptRoles: [],
     createdAt: new Date(),
     updatedAt: new Date(),
+}
+
+const strictTemplate: AutoModTemplate = {
+    id: 'strict',
+    name: 'Strict Shield',
+    description: 'Blocks common malicious links',
+    settings: {
+        linksEnabled: true,
+    },
 }
 
 function mockGuildStore(guild: typeof mockGuild | null) {
@@ -118,13 +127,7 @@ describe('AutoModPage', () => {
         } as any)
         vi.mocked(api.automod.listTemplates).mockResolvedValue({
             data: {
-                templates: [
-                    {
-                        id: 'strict',
-                        name: 'Strict Shield',
-                        description: 'Blocks common malicious links',
-                    },
-                ],
+                templates: [strictTemplate],
             },
         } as any)
         vi.mocked(api.automod.applyTemplate).mockResolvedValue({
@@ -165,13 +168,7 @@ describe('AutoModPage', () => {
         } as any)
         vi.mocked(api.automod.listTemplates).mockResolvedValue({
             data: {
-                templates: [
-                    {
-                        id: 'strict',
-                        name: 'Strict Shield',
-                        description: 'Blocks common malicious links',
-                    },
-                ],
+                templates: [strictTemplate],
             },
         } as any)
         vi.mocked(api.automod.applyTemplate).mockRejectedValue(

@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest'
-import { createAutoModApi } from './automodApi'
+import { createAutoModApi, type AutoModApiClient } from './automodApi'
 
-const apiClient = {
+const apiClient: AutoModApiClient = {
     get: vi.fn(),
     patch: vi.fn(),
     post: vi.fn(),
     delete: vi.fn(),
-} as const
+}
 
 describe('createAutoModApi', () => {
     beforeEach(() => {
@@ -14,7 +14,7 @@ describe('createAutoModApi', () => {
     })
 
     test('maps settings and template endpoints', () => {
-        const api = createAutoModApi(apiClient as never)
+        const api = createAutoModApi(apiClient)
 
         api.getSettings('guild-1')
         api.updateSettings('guild-1', { spamEnabled: true })
@@ -39,7 +39,7 @@ describe('createAutoModApi', () => {
     })
 
     test('maps exempt channels and roles endpoints', () => {
-        const api = createAutoModApi(apiClient as never)
+        const api = createAutoModApi(apiClient)
 
         api.addExemptChannel('guild-1', 'channel-1')
         api.removeExemptChannel('guild-1', 'channel-1')
@@ -67,7 +67,7 @@ describe('createAutoModApi', () => {
     })
 
     test('maps words and whitelist endpoints with URI encoding', () => {
-        const api = createAutoModApi(apiClient as never)
+        const api = createAutoModApi(apiClient)
 
         api.addWord('guild-1', 'bad word')
         api.removeWord('guild-1', 'bad word/1')

@@ -1,7 +1,12 @@
 import type { AxiosInstance } from 'axios'
 import type { AutoModSettings, AutoModTemplate } from '@/types'
 
-export function createAutoModApi(apiClient: AxiosInstance) {
+export type AutoModApiClient = Pick<
+    AxiosInstance,
+    'get' | 'patch' | 'post' | 'delete'
+>
+
+export function createAutoModApi(apiClient: AutoModApiClient) {
     return {
         getSettings: (guildId: string) =>
             apiClient.get<{ settings: AutoModSettings }>(
