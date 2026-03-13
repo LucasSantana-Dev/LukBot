@@ -276,6 +276,52 @@ export default function AutoModPage() {
         }
     }
 
+    const renderTemplates = () => {
+        if (templatesLoading) {
+            return <Skeleton className='h-12 w-full' />
+        }
+
+        if (templates.length === 0) {
+            return (
+                <p className='text-sm text-lucky-text-secondary'>
+                    No templates available right now.
+                </p>
+            )
+        }
+
+        return (
+            <div className='grid grid-cols-1 md:grid-cols-2 gap-3'>
+                {templates.map((template) => (
+                    <div
+                        key={template.id}
+                        className='rounded-xl border border-lucky-border bg-lucky-bg-tertiary/50 p-4'
+                    >
+                        <h3 className='text-sm font-semibold text-white'>
+                            {template.name}
+                        </h3>
+                        <p className='mt-1 text-xs text-lucky-text-secondary'>
+                            {template.description}
+                        </p>
+                        <Button
+                            className='mt-3 cursor-pointer'
+                            size='sm'
+                            onClick={() => {
+                                applyTemplate(template.id)
+                            }}
+                            disabled={applyingTemplateId !== null}
+                        >
+                            {applyingTemplateId === template.id ? (
+                                <Loader2 className='h-4 w-4 animate-spin' />
+                            ) : (
+                                'Apply template'
+                            )}
+                        </Button>
+                    </div>
+                ))}
+            </div>
+        )
+    }
+
     if (!selectedGuild) {
         return (
             <div className='flex flex-col items-center justify-center h-[60vh] text-center'>
@@ -350,46 +396,7 @@ export default function AutoModPage() {
                             Start from curated defaults for common malicious
                             links and harmful words.
                         </p>
-                        {templatesLoading ? (
-                            <Skeleton className='h-12 w-full' />
-                        ) : templates.length === 0 ? (
-                            <p className='text-sm text-lucky-text-secondary'>
-                                No templates available right now.
-                            </p>
-                        ) : (
-                            <div className='grid grid-cols-1 md:grid-cols-2 gap-3'>
-                                {templates.map((template) => (
-                                    <div
-                                        key={template.id}
-                                        className='rounded-xl border border-lucky-border bg-lucky-bg-tertiary/50 p-4'
-                                    >
-                                        <h3 className='text-sm font-semibold text-white'>
-                                            {template.name}
-                                        </h3>
-                                        <p className='mt-1 text-xs text-lucky-text-secondary'>
-                                            {template.description}
-                                        </p>
-                                        <Button
-                                            className='mt-3 cursor-pointer'
-                                            size='sm'
-                                            onClick={() => {
-                                                applyTemplate(template.id)
-                                            }}
-                                            disabled={
-                                                applyingTemplateId !== null
-                                            }
-                                        >
-                                            {applyingTemplateId ===
-                                            template.id ? (
-                                                <Loader2 className='h-4 w-4 animate-spin' />
-                                            ) : (
-                                                'Apply template'
-                                            )}
-                                        </Button>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                        {renderTemplates()}
                     </Card>
                 </motion.div>
 

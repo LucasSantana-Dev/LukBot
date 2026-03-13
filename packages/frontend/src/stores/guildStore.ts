@@ -46,6 +46,34 @@ function mergeGuild(guilds: Guild[], incoming: Guild): Guild[] {
     )
 }
 
+function findGuildById(guilds: Guild[], guildId: string): Guild | null {
+    for (const guild of guilds) {
+        if (guild.id === guildId) {
+            return guild
+        }
+    }
+
+    return null
+}
+
+function mergeDetailedGuildState(
+    state: GuildState,
+    guildId: string,
+    detailedGuild: Guild,
+): Pick<GuildState, 'guilds' | 'selectedGuild'> | object {
+    if (state.selectedGuildId !== guildId) {
+        return {}
+    }
+
+    const mergedGuilds = mergeGuild(state.guilds, detailedGuild)
+    const selectedGuild = findGuildById(mergedGuilds, guildId) ?? detailedGuild
+
+    return {
+        guilds: mergedGuilds,
+        selectedGuild,
+    }
+}
+
 function classifyGuildLoadError(error: unknown): GuildLoadErrorState {
     if (error instanceof ApiError) {
         if (error.status === 401) {
@@ -188,22 +216,10 @@ export const useGuildStore = create<GuildState>((set, get) => ({
         api.guilds
             .get(guildId)
             .then((response) => {
-                set((state) => {
-                    if (state.selectedGuildId !== guildId) {
-                        return {}
-                    }
-
-                    const detailedGuild = response.data.guild
-                    const mergedGuilds = mergeGuild(state.guilds, detailedGuild)
-                    const selectedGuild =
-                        mergedGuilds.find((item) => item.id === guildId) ??
-                        detailedGuild
-
-                    return {
-                        guilds: mergedGuilds,
-                        selectedGuild,
-                    }
-                })
+                const detailedGuild = response.data.guild
+                set((state) =>
+                    mergeDetailedGuildState(state, guildId, detailedGuild),
+                )
             })
             .catch(() => {})
 
