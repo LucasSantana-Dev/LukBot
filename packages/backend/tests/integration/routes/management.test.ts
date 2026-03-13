@@ -14,6 +14,14 @@ jest.mock('../../../src/services/SessionService', () => ({
 }))
 
 jest.mock('@lucky/shared/services', () => ({
+    AutoModTemplateNotFoundError: class AutoModTemplateNotFoundError extends Error {
+        readonly code = 'ERR_AUTOMOD_TEMPLATE_NOT_FOUND'
+
+        constructor(templateId: string) {
+            super(`Auto-mod template not found: ${templateId}`)
+            this.name = 'AutoModTemplateNotFoundError'
+        }
+    },
     autoModService: {
         getSettings: jest.fn(),
         updateSettings: jest.fn(),
@@ -46,6 +54,7 @@ jest.mock('../../../src/routes/managementAutoMessages', () => ({
 }))
 
 import {
+    AutoModTemplateNotFoundError,
     autoModService,
     customCommandService,
     serverLogService,
@@ -303,7 +312,7 @@ describe('Management Routes Integration', () => {
                 typeof autoModService
             >
             mockAutoModService.applyTemplate.mockRejectedValue(
-                new Error('Auto-mod template not found'),
+                new AutoModTemplateNotFoundError('unknown'),
             )
 
             const response = await request(app)

@@ -16,7 +16,11 @@ export * from './moderationSettings.js'
 export * from './AutoMessageService.js'
 export * from './CustomCommandService.js'
 export * from './ServerLogService.js'
-export { AutoModService, autoModService } from './AutoModService.js'
+export {
+    AutoModService,
+    AutoModTemplateNotFoundError,
+    autoModService,
+} from './AutoModService.js'
 export * from './EmbedBuilderService.js'
 export type { EmbedData, EmbedField } from './embedValidation.js'
 export {

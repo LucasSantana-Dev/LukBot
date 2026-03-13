@@ -10,6 +10,7 @@ import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
 import { managementSchemas as s } from '../schemas/management'
 import {
+    AutoModTemplateNotFoundError,
     autoModService,
     customCommandService,
     serverLogService,
@@ -97,10 +98,7 @@ export function setupManagementRoutes(app: Express): void {
                     settings: result.settings,
                 })
             } catch (error) {
-                if (
-                    error instanceof Error &&
-                    error.message === 'Auto-mod template not found'
-                ) {
+                if (error instanceof AutoModTemplateNotFoundError) {
                     throw AppError.notFound('Auto-mod template not found')
                 }
                 throw error

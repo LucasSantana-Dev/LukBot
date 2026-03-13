@@ -38,6 +38,15 @@ export interface AutoModTemplate {
     settings: Partial<AutoModMutableSettings>
 }
 
+export class AutoModTemplateNotFoundError extends Error {
+    readonly code = 'ERR_AUTOMOD_TEMPLATE_NOT_FOUND'
+
+    constructor(templateId: string) {
+        super(`Auto-mod template not found: ${templateId}`)
+        this.name = 'AutoModTemplateNotFoundError'
+    }
+}
+
 const AUTO_MOD_TEMPLATES: AutoModTemplate[] = [
     {
         id: 'balanced',
@@ -184,7 +193,7 @@ export class AutoModService {
     ): Promise<{ settings: AutoModSettings; template: AutoModTemplate }> {
         const template = AUTO_MOD_TEMPLATES.find((item) => item.id === templateId)
         if (!template) {
-            throw new Error('Auto-mod template not found')
+            throw new AutoModTemplateNotFoundError(templateId)
         }
 
         const current = (await this.getSettings(guildId)) ?? (await this.createSettings(guildId))

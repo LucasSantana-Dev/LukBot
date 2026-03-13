@@ -1,6 +1,7 @@
 import {
     GuildRoleGrantStorageError,
     guildRoleAccessService,
+    redisClient,
     type AccessMode,
     type EffectiveAccessMap,
     type ModuleKey,
@@ -20,6 +21,7 @@ export interface GuildAccessContext {
     owner: boolean
     isAdmin: boolean
     hasBot: boolean
+    botPresenceChecked: boolean
     roleIds: string[]
     nickname: string | null
     effectiveAccess: EffectiveAccessMap
@@ -32,58 +34,83 @@ export interface AuthorizedGuild extends GuildWithBotStatus {
 }
 
 class GuildAccessService {
-    private readonly userGuildCache = new Map<
-        string,
-        {
-            guilds: DiscordGuild[]
-            expiresAt: number
-        }
-    >()
-    private readonly userGuildCacheTtlMs = 30_000
-    private readonly userGuildCacheMaxEntries = 200
+    private readonly userGuildCacheTtlSeconds = 30
+
+    private isDiscordGuildArray(value: unknown): value is DiscordGuild[] {
+        return (
+            Array.isArray(value) &&
+            value.every((item) => {
+                if (typeof item !== 'object' || item === null) {
+                    return false
+                }
+
+                const guild = item as {
+                    id?: unknown
+                    name?: unknown
+                }
+
+                return (
+                    typeof guild.id === 'string' &&
+                    typeof guild.name === 'string'
+                )
+            })
+        )
+    }
 
     private getCacheKey(session: SessionData): string {
-        return `${session.user.id}:${session.accessToken.slice(0, 24)}`
+        return `guild-access:user-guilds:${session.user.id}:${session.accessToken.slice(0, 24)}`
     }
 
-    private getCachedGuilds(session: SessionData): DiscordGuild[] | null {
-        const entry = this.userGuildCache.get(this.getCacheKey(session))
-        if (!entry) {
+    private async getCachedGuilds(
+        session: SessionData,
+    ): Promise<DiscordGuild[] | null> {
+        if (!redisClient.isHealthy()) {
             return null
         }
 
-        if (entry.expiresAt <= Date.now()) {
-            this.userGuildCache.delete(this.getCacheKey(session))
+        try {
+            const raw = await redisClient.get(this.getCacheKey(session))
+            if (!raw) {
+                return null
+            }
+
+            const parsed: unknown = JSON.parse(raw)
+            if (!this.isDiscordGuildArray(parsed)) {
+                return null
+            }
+
+            return parsed
+        } catch (error) {
+            errorLog({
+                message: 'Failed to read cached Discord guild list',
+                error,
+                data: { userId: session.user.id },
+            })
             return null
         }
-
-        return entry.guilds
     }
 
-    private pruneExpiredCacheEntries(now: number): void {
-        for (const [key, entry] of this.userGuildCache.entries()) {
-            if (entry.expiresAt <= now) {
-                this.userGuildCache.delete(key)
-            }
-        }
-    }
-
-    private setCachedGuilds(session: SessionData, guilds: DiscordGuild[]): void {
-        const now = Date.now()
-        this.pruneExpiredCacheEntries(now)
-
-        while (this.userGuildCache.size >= this.userGuildCacheMaxEntries) {
-            const oldestKey = this.userGuildCache.keys().next().value
-            if (oldestKey === undefined) {
-                break
-            }
-            this.userGuildCache.delete(oldestKey)
+    private async setCachedGuilds(
+        session: SessionData,
+        guilds: DiscordGuild[],
+    ): Promise<void> {
+        if (!redisClient.isHealthy()) {
+            return
         }
 
-        this.userGuildCache.set(this.getCacheKey(session), {
-            guilds,
-            expiresAt: now + this.userGuildCacheTtlMs,
-        })
+        try {
+            await redisClient.setex(
+                this.getCacheKey(session),
+                this.userGuildCacheTtlSeconds,
+                JSON.stringify(guilds),
+            )
+        } catch (error) {
+            errorLog({
+                message: 'Failed to cache Discord guild list',
+                error,
+                data: { userId: session.user.id, guildCount: guilds.length },
+            })
+        }
     }
 
     private extractStatusCode(error: unknown): number | null {
@@ -118,11 +145,11 @@ class GuildAccessService {
             const guilds = await discordOAuthService.getUserGuilds(
                 session.accessToken,
             )
-            this.setCachedGuilds(session, guilds)
+            await this.setCachedGuilds(session, guilds)
             return guilds
         } catch (error) {
             const statusCode = this.extractStatusCode(error)
-            const cachedGuilds = this.getCachedGuilds(session)
+            const cachedGuilds = await this.getCachedGuilds(session)
 
             if (
                 allowCachedFallback &&
@@ -191,6 +218,7 @@ class GuildAccessService {
                 owner: guild.owner,
                 isAdmin,
                 hasBot: false,
+                botPresenceChecked: false,
                 roleIds: [],
                 nickname: null,
                 effectiveAccess,
@@ -215,6 +243,7 @@ class GuildAccessService {
             owner: guild.owner,
             isAdmin,
             hasBot,
+            botPresenceChecked: true,
             roleIds: memberContext.roleIds,
             nickname: memberContext.nickname,
             effectiveAccess,
@@ -227,7 +256,7 @@ class GuildAccessService {
             return true
         }
 
-        if (!context.hasBot) {
+        if (!context.botPresenceChecked || !context.hasBot) {
             return false
         }
 

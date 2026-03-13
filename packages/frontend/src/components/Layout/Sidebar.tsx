@@ -230,7 +230,7 @@ function Sidebar() {
                         type='button'
                         onClick={() => setServerDropdownOpen((value) => !value)}
                         aria-expanded={serverDropdownOpen}
-                        aria-haspopup='listbox'
+                        aria-haspopup='menu'
                         className='lucky-focus-visible flex w-full items-center gap-3 rounded-xl border border-lucky-border bg-lucky-bg-tertiary/70 px-3 py-2.5 text-left transition-colors hover:border-lucky-border-strong hover:bg-lucky-bg-active/60'
                     >
                         {selectedGuild ? (
@@ -275,94 +275,104 @@ function Sidebar() {
                                 transition={{ duration: 0.14 }}
                                 className='absolute left-0 right-0 top-full z-50 mt-1.5 overflow-hidden rounded-xl border border-lucky-border bg-lucky-bg-secondary shadow-2xl'
                             >
-                                <ScrollArea className='max-h-56'>
-                                    {guilds.length === 0 ? (
-                                        <div className='space-y-2 px-3 py-4 text-center'>
-                                            {guildLoadError ? (
-                                                <>
-                                                    <p className='type-body-sm font-semibold text-lucky-text-primary'>
-                                                        Could not load servers
-                                                    </p>
-                                                    <p className='type-body-sm text-lucky-text-tertiary'>
-                                                        {guildLoadErrorMessage}
-                                                    </p>
-                                                    <div className='mt-3 flex items-center justify-center gap-2'>
-                                                        <button
-                                                            type='button'
-                                                            onClick={() =>
-                                                                void fetchGuilds(
-                                                                    true,
-                                                                )
-                                                            }
-                                                            className='lucky-focus-visible cursor-pointer rounded-md border border-lucky-border px-2.5 py-1 text-[11px] font-semibold text-lucky-text-secondary transition-colors hover:border-lucky-border-strong hover:bg-lucky-bg-tertiary'
-                                                        >
-                                                            Retry
-                                                        </button>
-                                                        {showReauth && (
-                                                            <a
-                                                                href='/api/auth/discord'
-                                                                className='lucky-focus-visible rounded-md border border-lucky-border px-2.5 py-1 text-[11px] font-semibold text-lucky-text-secondary transition-colors hover:border-lucky-border-strong hover:bg-lucky-bg-tertiary'
-                                                            >
-                                                                Re-authenticate
-                                                            </a>
-                                                        )}
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                <p className='type-body-sm text-lucky-text-tertiary'>
-                                                    {isLoading
-                                                        ? 'Loading servers...'
-                                                        : 'No accessible servers found'}
-                                                </p>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        guilds.map((guild) => (
+                                {guildLoadError && (
+                                    <div className='space-y-2 border-b border-lucky-border px-3 py-3 text-center'>
+                                        <p className='type-body-sm font-semibold text-lucky-text-primary'>
+                                            Could not load servers
+                                        </p>
+                                        <p className='type-body-sm text-lucky-text-tertiary'>
+                                            {guildLoadErrorMessage}
+                                        </p>
+                                        <div className='mt-3 flex items-center justify-center gap-2'>
                                             <button
-                                                key={guild.id}
                                                 type='button'
                                                 onClick={() => {
-                                                    selectGuild(guild)
-                                                    setServerDropdownOpen(false)
+                                                    Promise.resolve(
+                                                        fetchGuilds(true),
+                                                    ).catch(() => {})
                                                 }}
-                                                className={cn(
-                                                    'lucky-focus-visible flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-lucky-bg-tertiary/90',
-                                                    selectedGuild?.id ===
-                                                        guild.id &&
-                                                        'bg-lucky-bg-active/70',
-                                                )}
+                                                className='lucky-focus-visible cursor-pointer rounded-md border border-lucky-border px-2.5 py-1 text-[11px] font-semibold text-lucky-text-secondary transition-colors hover:border-lucky-border-strong hover:bg-lucky-bg-tertiary'
                                             >
-                                                <Avatar className='h-6 w-6 shrink-0'>
-                                                    <AvatarImage
-                                                        src={
-                                                            guild.icon
-                                                                ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=64`
-                                                                : undefined
-                                                        }
-                                                    />
-                                                    <AvatarFallback className='bg-lucky-bg-active text-[9px] text-white'>
-                                                        {guild.name
-                                                            .substring(0, 2)
-                                                            .toUpperCase()}
-                                                    </AvatarFallback>
-                                                </Avatar>
-                                                <span className='type-body-sm truncate text-lucky-text-primary'>
-                                                    {guild.name}
-                                                </span>
-                                                <span className='ml-auto flex items-center gap-2'>
-                                                    {!guild.botAdded && (
-                                                        <span className='rounded-md border border-lucky-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-lucky-text-tertiary'>
-                                                            Invite bot
-                                                        </span>
-                                                    )}
-                                                    {selectedGuild?.id ===
-                                                        guild.id && (
-                                                        <Sparkles className='h-3.5 w-3.5 text-lucky-accent' />
-                                                    )}
-                                                </span>
+                                                Retry
                                             </button>
-                                        ))
-                                    )}
+                                            {showReauth && (
+                                                <a
+                                                    href='/api/auth/discord'
+                                                    className='lucky-focus-visible rounded-md border border-lucky-border px-2.5 py-1 text-[11px] font-semibold text-lucky-text-secondary transition-colors hover:border-lucky-border-strong hover:bg-lucky-bg-tertiary'
+                                                >
+                                                    Re-authenticate
+                                                </a>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                                <ScrollArea className='max-h-56'>
+                                    <div role='menu'>
+                                        {guilds.length === 0 ? (
+                                            <div className='space-y-2 px-3 py-4 text-center'>
+                                                {!guildLoadError && (
+                                                    <p className='type-body-sm text-lucky-text-tertiary'>
+                                                        {isLoading
+                                                            ? 'Loading servers...'
+                                                            : 'No accessible servers found'}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            guilds.map((guild) => (
+                                                <button
+                                                    key={guild.id}
+                                                    type='button'
+                                                    role='menuitemradio'
+                                                    aria-checked={
+                                                        selectedGuild?.id ===
+                                                        guild.id
+                                                    }
+                                                    onClick={() => {
+                                                        selectGuild(guild)
+                                                        setServerDropdownOpen(
+                                                            false,
+                                                        )
+                                                    }}
+                                                    className={cn(
+                                                        'lucky-focus-visible flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-lucky-bg-tertiary/90',
+                                                        selectedGuild?.id ===
+                                                            guild.id &&
+                                                            'bg-lucky-bg-active/70',
+                                                    )}
+                                                >
+                                                    <Avatar className='h-6 w-6 shrink-0'>
+                                                        <AvatarImage
+                                                            src={
+                                                                guild.icon
+                                                                    ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=64`
+                                                                    : undefined
+                                                            }
+                                                        />
+                                                        <AvatarFallback className='bg-lucky-bg-active text-[9px] text-white'>
+                                                            {guild.name
+                                                                .substring(0, 2)
+                                                                .toUpperCase()}
+                                                        </AvatarFallback>
+                                                    </Avatar>
+                                                    <span className='type-body-sm truncate text-lucky-text-primary'>
+                                                        {guild.name}
+                                                    </span>
+                                                    <span className='ml-auto flex items-center gap-2'>
+                                                        {!guild.botAdded && (
+                                                            <span className='rounded-md border border-lucky-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-lucky-text-tertiary'>
+                                                                Invite bot
+                                                            </span>
+                                                        )}
+                                                        {selectedGuild?.id ===
+                                                            guild.id && (
+                                                            <Sparkles className='h-3.5 w-3.5 text-lucky-accent' />
+                                                        )}
+                                                    </span>
+                                                </button>
+                                            ))
+                                        )}
+                                    </div>
                                 </ScrollArea>
                             </motion.div>
                         )}

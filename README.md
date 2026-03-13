@@ -110,6 +110,8 @@ packages/
 - `/servers` remains available to authenticated users even when module-level
   access is restricted, so server discovery/invite flows stay reachable
 - Sidebar identity resolution chain: `nick > globalName > username`
+- Sidebar server selector preserves stale guild context during transient API
+  failures and keeps Retry/Re-auth controls available in the dropdown
 - Dashboard guild metrics now use live bot/API counts, rendering unknown values
   as `—` instead of `0`
 - Moderation case viewer and settings
@@ -132,6 +134,8 @@ packages/
 - Request logging middleware
 - RBAC storage outages now return explicit `503` API responses when
   `guild_role_grants` is unavailable
+- Guild access fallback cache is backed by Redis keys (short TTL) so Discord
+  `429/5xx` fallback works across multi-instance backend replicas
 - Auth readiness health contract at `GET /api/health/auth-config`
   (includes `clientId` and generated `authorizeUrlPreview`, without secrets)
 - Guild automation execution locking is Redis-backed and fail-closed when lock

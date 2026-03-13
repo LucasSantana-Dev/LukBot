@@ -28,6 +28,9 @@ const mockHasAccess = jest.fn<
     boolean,
     [Record<string, string>, string, string]
 >()
+const mockRedisIsHealthy = jest.fn<boolean, []>()
+const mockRedisGet = jest.fn<Promise<string | null>, [string]>()
+const mockRedisSetex = jest.fn<Promise<boolean>, [string, number, string]>()
 
 class MockGuildRoleGrantStorageError extends Error {}
 
@@ -61,6 +64,11 @@ jest.mock('@lucky/shared/services', () => ({
             mockHasAnyAccess(...args),
         hasAccess: (...args: [Record<string, string>, string, string]) =>
             mockHasAccess(...args),
+    },
+    redisClient: {
+        isHealthy: (...args: []) => mockRedisIsHealthy(...args),
+        get: (...args: [string]) => mockRedisGet(...args),
+        setex: (...args: [string, number, string]) => mockRedisSetex(...args),
     },
 }))
 
@@ -118,6 +126,9 @@ describe('GuildAccessService', () => {
             }
             return value === 'manage'
         })
+        mockRedisIsHealthy.mockReturnValue(false)
+        mockRedisGet.mockResolvedValue(null)
+        mockRedisSetex.mockResolvedValue(true)
         mockEnrichGuildsWithBotStatus.mockImplementation(
             async (guilds: DiscordGuild[]) =>
                 guilds.map((guild) => ({
@@ -345,6 +356,7 @@ describe('GuildAccessService', () => {
             guildId: adminGuild.id,
             isAdmin: true,
             hasBot: false,
+            botPresenceChecked: false,
             canManageRbac: true,
         })
         expect(mockHasBotInGuild).not.toHaveBeenCalled()
@@ -444,6 +456,7 @@ describe('GuildAccessService', () => {
             owner: false,
             isAdmin: false,
             hasBot: true,
+            botPresenceChecked: true,
             roleIds: ['role-mod'],
             nickname: 'Moderator',
             canManageRbac: false,
@@ -475,6 +488,7 @@ describe('GuildAccessService', () => {
             guildId: guild.id,
             isAdmin: true,
             hasBot: false,
+            botPresenceChecked: false,
             roleIds: [],
             nickname: null,
             effectiveAccess: adminAccess,
@@ -521,6 +535,7 @@ describe('GuildAccessService', () => {
                 owner: false,
                 isAdmin: false,
                 hasBot: true,
+                botPresenceChecked: true,
                 roleIds: [],
                 nickname: null,
                 effectiveAccess: access,

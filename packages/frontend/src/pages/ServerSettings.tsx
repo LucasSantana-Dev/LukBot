@@ -93,14 +93,18 @@ export default function ServerSettingsPage() {
                     'No assignable roles found for this server yet.',
                 )
             }
-        } catch {
+        } catch (error) {
             if (requestId !== rbacRequestIdRef.current) {
                 return
             }
+            const detailsMessage =
+                error instanceof ApiError
+                    ? error.message
+                    : 'Failed to load role options for access rules.'
             setRbacRoles([])
             setRbacGrants([])
-            setRbacRolesError('Failed to load role options for access rules.')
-            toast.error('Failed to load access control policy')
+            setRbacRolesError(detailsMessage)
+            toast.error(detailsMessage)
         } finally {
             if (requestId === rbacRequestIdRef.current) {
                 setRbacLoading(false)

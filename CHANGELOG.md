@@ -55,6 +55,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Guild-access fallback caching now uses shared Redis keys instead of
+  process-local memory, preserving fallback behavior across multi-instance
+  backend deployments
+- Sidebar server selector now exposes retry/re-auth recovery actions whenever
+  guild loading fails (including stale-guild scenarios) and uses corrected menu
+  accessibility semantics
+- Auto-Mod template apply flow now uses a typed
+  `AutoModTemplateNotFoundError` mapped to stable `404` route responses
 - OAuth callback resolution now prioritizes `WEBAPP_BACKEND_URL` in production
   (fallback: `WEBAPP_REDIRECT_URI`) so `/api/auth/discord` and
   `/api/health/auth-config` stay aligned with split-origin API deployments.

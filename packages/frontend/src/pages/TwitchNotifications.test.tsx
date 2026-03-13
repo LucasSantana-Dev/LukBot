@@ -66,7 +66,7 @@ function renderPage() {
 describe('TwitchNotificationsPage', () => {
     beforeEach(() => {
         vi.clearAllMocks()
-        Object.defineProperty(window.HTMLElement.prototype, 'scrollIntoView', {
+        Object.defineProperty(globalThis.HTMLElement.prototype, 'scrollIntoView', {
             configurable: true,
             value: vi.fn(),
         })

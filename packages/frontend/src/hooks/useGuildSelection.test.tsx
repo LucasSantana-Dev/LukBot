@@ -12,7 +12,7 @@ type GuildState = {
     selectedGuild: { id: string; botAdded: boolean } | null
     isLoading: boolean
     hasFetchedGuilds: boolean
-    fetchGuilds: () => Promise<void>
+    fetchGuilds: (force?: boolean) => Promise<void>
     selectGuild: (guild: { id: string; botAdded: boolean }) => void
     guildLoadError: { kind: string; message: string; status?: number } | null
 }
@@ -23,7 +23,7 @@ type AuthState = {
 }
 
 describe('useGuildSelection', () => {
-    const fetchGuilds = vi.fn<() => Promise<void>>()
+    const fetchGuilds = vi.fn<(force?: boolean) => Promise<void>>()
     const selectGuild = vi.fn<(guild: { id: string; botAdded: boolean }) => void>()
 
     let guildState: GuildState
@@ -83,6 +83,7 @@ describe('useGuildSelection', () => {
 
         await waitFor(() => {
             expect(fetchGuilds).toHaveBeenCalledTimes(2)
+            expect(fetchGuilds).toHaveBeenLastCalledWith(true)
         })
     })
 

@@ -334,7 +334,7 @@ describe('ServerSettingsPage', () => {
 
         await waitFor(() => {
             expect(toast.error).toHaveBeenCalledWith(
-                'Failed to load access control policy',
+                'Failed to load role options for access rules.',
             )
         })
     })

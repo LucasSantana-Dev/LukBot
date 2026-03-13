@@ -238,7 +238,7 @@ describe('RBAC Routes Integration', () => {
             new GuildRoleGrantStorageError('storage unavailable'),
         )
 
-        await request(app)
+        const response = await request(app)
             .put(`/api/guilds/${guildId}/rbac`)
             .set('Cookie', ['sessionId=valid_session_id'])
             .send({
@@ -251,5 +251,9 @@ describe('RBAC Routes Integration', () => {
                 ],
             })
             .expect(503)
+
+        expect(response.body).toEqual({
+            error: 'RBAC storage is unavailable. Run database migrations and retry.',
+        })
     })
 })
