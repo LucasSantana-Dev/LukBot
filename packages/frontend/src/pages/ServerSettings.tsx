@@ -1,4 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import {
+    useState,
+    useEffect,
+    useCallback,
+    useRef,
+    type ReactElement,
+} from 'react'
 import { motion } from 'framer-motion'
 import {
     Settings,
@@ -275,6 +281,131 @@ export default function ServerSettingsPage() {
         )
     }
 
+    let rbacContent: ReactElement
+    if (!canManageRbac) {
+        rbacContent = (
+            <div className='rounded-xl border border-lucky-border bg-lucky-bg-tertiary/50 p-4'>
+                <p className='text-sm text-lucky-text-secondary'>
+                    Only server owner or users with Administrator/Manage Server
+                    permission can manage RBAC policy.
+                </p>
+            </div>
+        )
+    } else if (rbacLoading) {
+        rbacContent = (
+            <div className='space-y-3'>
+                {Array.from({ length: 3 }).map((_, index) => (
+                    <Skeleton key={index} className='h-12 w-full' />
+                ))}
+            </div>
+        )
+    } else {
+        rbacContent = (
+            <div className='space-y-3'>
+                {rbacRolesError && (
+                    <div className='rounded-xl border border-lucky-border bg-lucky-bg-tertiary/50 p-3 text-sm text-lucky-text-secondary'>
+                        <div className='flex items-center justify-between gap-3'>
+                            <span>{rbacRolesError}</span>
+                            {selectedGuild?.id && (
+                                <Button
+                                    type='button'
+                                    size='sm'
+                                    variant='ghost'
+                                    className='gap-2'
+                                    onClick={() => {
+                                        loadRbac(selectedGuild.id)
+                                    }}
+                                >
+                                    <RotateCcw className='w-4 h-4' />
+                                    Retry Roles
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                )}
+                {rbacGrants.length === 0 ? (
+                    <p className='text-sm text-lucky-text-tertiary'>
+                        No RBAC rules configured. Add a rule to grant module
+                        access.
+                    </p>
+                ) : (
+                    rbacGrants.map((grant, index) => (
+                        <div
+                            key={`${grant.roleId}:${grant.module}:${grant.mode}:${index}`}
+                            className='grid grid-cols-1 gap-3 rounded-xl border border-lucky-border bg-lucky-bg-tertiary/50 p-3 md:grid-cols-[1.4fr_1fr_1fr_auto]'
+                        >
+                            <Select
+                                value={grant.roleId}
+                                onValueChange={(value) =>
+                                    updateRbacGrant(index, {
+                                        roleId: value,
+                                    })
+                                }
+                            >
+                                <SelectTrigger className='bg-lucky-bg-secondary border-lucky-border text-white'>
+                                    <SelectValue placeholder='Role' />
+                                </SelectTrigger>
+                                <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
+                                    {rbacRoles.map((role) => (
+                                        <SelectItem key={role.id} value={role.id}>
+                                            {role.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+                            <Select
+                                value={grant.module}
+                                onValueChange={(value) =>
+                                    updateRbacGrant(index, {
+                                        module: value as RoleGrant['module'],
+                                    })
+                                }
+                            >
+                                <SelectTrigger className='bg-lucky-bg-secondary border-lucky-border text-white'>
+                                    <SelectValue placeholder='Module' />
+                                </SelectTrigger>
+                                <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
+                                    {RBAC_MODULES.map((module) => (
+                                        <SelectItem key={module} value={module}>
+                                            {module}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+                            <Select
+                                value={grant.mode}
+                                onValueChange={(value) =>
+                                    updateRbacGrant(index, {
+                                        mode: value as RoleGrant['mode'],
+                                    })
+                                }
+                            >
+                                <SelectTrigger className='bg-lucky-bg-secondary border-lucky-border text-white'>
+                                    <SelectValue placeholder='Mode' />
+                                </SelectTrigger>
+                                <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
+                                    <SelectItem value='view'>view</SelectItem>
+                                    <SelectItem value='manage'>manage</SelectItem>
+                                </SelectContent>
+                            </Select>
+
+                            <Button
+                                type='button'
+                                variant='ghost'
+                                className='text-lucky-text-tertiary hover:text-lucky-error'
+                                onClick={() => removeRbacGrant(index)}
+                            >
+                                <Trash2 className='w-4 h-4' />
+                            </Button>
+                        </div>
+                    ))
+                )}
+            </div>
+        )
+    }
+
     return (
         <div className='space-y-6'>
             <div className='flex items-start justify-between'>
@@ -535,136 +666,7 @@ export default function ServerSettingsPage() {
                         )}
                     </div>
 
-                    {!canManageRbac ? (
-                        <div className='rounded-xl border border-lucky-border bg-lucky-bg-tertiary/50 p-4'>
-                            <p className='text-sm text-lucky-text-secondary'>
-                                Only server owner or users with
-                                Administrator/Manage Server permission can
-                                manage RBAC policy.
-                            </p>
-                        </div>
-                    ) : rbacLoading ? (
-                        <div className='space-y-3'>
-                            {Array.from({ length: 3 }).map((_, index) => (
-                                <Skeleton key={index} className='h-12 w-full' />
-                            ))}
-                        </div>
-                    ) : (
-                        <div className='space-y-3'>
-                            {rbacRolesError && (
-                                <div className='rounded-xl border border-lucky-border bg-lucky-bg-tertiary/50 p-3 text-sm text-lucky-text-secondary'>
-                                    <div className='flex items-center justify-between gap-3'>
-                                        <span>{rbacRolesError}</span>
-                                        {selectedGuild?.id && (
-                                            <Button
-                                                type='button'
-                                                size='sm'
-                                                variant='ghost'
-                                                className='gap-2'
-                                                onClick={() => {
-                                                    loadRbac(selectedGuild.id)
-                                                }}
-                                            >
-                                                <RotateCcw className='w-4 h-4' />
-                                                Retry Roles
-                                            </Button>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                            {rbacGrants.length === 0 ? (
-                                <p className='text-sm text-lucky-text-tertiary'>
-                                    No RBAC rules configured. Add a rule to
-                                    grant module access.
-                                </p>
-                            ) : (
-                                rbacGrants.map((grant, index) => (
-                                    <div
-                                        key={`${grant.roleId}:${grant.module}:${grant.mode}:${index}`}
-                                        className='grid grid-cols-1 gap-3 rounded-xl border border-lucky-border bg-lucky-bg-tertiary/50 p-3 md:grid-cols-[1.4fr_1fr_1fr_auto]'
-                                    >
-                                        <Select
-                                            value={grant.roleId}
-                                            onValueChange={(value) =>
-                                                updateRbacGrant(index, {
-                                                    roleId: value,
-                                                })
-                                            }
-                                        >
-                                            <SelectTrigger className='bg-lucky-bg-secondary border-lucky-border text-white'>
-                                                <SelectValue placeholder='Role' />
-                                            </SelectTrigger>
-                                            <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
-                                                {rbacRoles.map((role) => (
-                                                    <SelectItem
-                                                        key={role.id}
-                                                        value={role.id}
-                                                    >
-                                                        {role.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-
-                                        <Select
-                                            value={grant.module}
-                                            onValueChange={(value) =>
-                                                updateRbacGrant(index, {
-                                                    module: value as RoleGrant['module'],
-                                                })
-                                            }
-                                        >
-                                            <SelectTrigger className='bg-lucky-bg-secondary border-lucky-border text-white'>
-                                                <SelectValue placeholder='Module' />
-                                            </SelectTrigger>
-                                            <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
-                                                {RBAC_MODULES.map((module) => (
-                                                    <SelectItem
-                                                        key={module}
-                                                        value={module}
-                                                    >
-                                                        {module}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-
-                                        <Select
-                                            value={grant.mode}
-                                            onValueChange={(value) =>
-                                                updateRbacGrant(index, {
-                                                    mode: value as RoleGrant['mode'],
-                                                })
-                                            }
-                                        >
-                                            <SelectTrigger className='bg-lucky-bg-secondary border-lucky-border text-white'>
-                                                <SelectValue placeholder='Mode' />
-                                            </SelectTrigger>
-                                            <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
-                                                <SelectItem value='view'>
-                                                    view
-                                                </SelectItem>
-                                                <SelectItem value='manage'>
-                                                    manage
-                                                </SelectItem>
-                                            </SelectContent>
-                                        </Select>
-
-                                        <Button
-                                            type='button'
-                                            variant='ghost'
-                                            className='text-lucky-text-tertiary hover:text-lucky-error'
-                                            onClick={() =>
-                                                removeRbacGrant(index)
-                                            }
-                                        >
-                                            <Trash2 className='w-4 h-4' />
-                                        </Button>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    )}
+                    {rbacContent}
                 </Card>
             </motion.div>
         </div>
