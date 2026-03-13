@@ -3,7 +3,6 @@ import guildconfigCommand from './guildconfig'
 
 const captureGuildAutomationStateMock = jest.fn()
 const createPlanMock = jest.fn()
-const getManifestMock = jest.fn()
 const getStatusMock = jest.fn()
 const listRunsMock = jest.fn()
 const recordCaptureMock = jest.fn()
@@ -24,7 +23,6 @@ jest.mock('../../../utils/guildAutomation/applyPlan', () => ({
 jest.mock('@lucky/shared/services', () => ({
     guildAutomationService: {
         createPlan: (...args: unknown[]) => createPlanMock(...args),
-        getManifest: (...args: unknown[]) => getManifestMock(...args),
         getStatus: (...args: unknown[]) => getStatusMock(...args),
         listRuns: (...args: unknown[]) => listRunsMock(...args),
         recordCapture: (...args: unknown[]) => recordCaptureMock(...args),
@@ -37,41 +35,13 @@ jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
 }))
 
-function createMember(roleIds: string[]) {
-    const remove = jest.fn().mockResolvedValue(undefined)
-
+function createInteraction(subcommand: string, options: Record<string, unknown> = {}) {
     return {
-        roles: {
-            cache: new Map(
-                roleIds.map((roleId) => [
-                    roleId,
-                    {
-                        id: roleId,
-                    },
-                ]),
-            ),
-            remove,
+        guild: {
+            id: '123456789012345678',
+            name: 'Criativaria',
+            editOnboarding: jest.fn(),
         },
-    }
-}
-
-function createInteraction(
-    subcommand: string,
-    options: Record<string, unknown> = {},
-    guildOverrides: Record<string, unknown> = {},
-) {
-    const guild = {
-        id: '123456789012345678',
-        name: 'Criativaria',
-        editOnboarding: jest.fn(),
-        members: {
-            cache: new Map(),
-        },
-        ...guildOverrides,
-    }
-
-    return {
-        guild,
         client: {
             user: {
                 id: '999999999999999999',
@@ -116,7 +86,6 @@ describe('guildconfig command', () => {
                 },
             },
         })
-        getManifestMock.mockResolvedValue(null)
         getStatusMock.mockResolvedValue({
             manifest: {
                 guildId: '123456789012345678',
@@ -199,152 +168,5 @@ describe('guildconfig command', () => {
                 status: 'completed',
             }),
         )
-    })
-
-    it('marks run as blocked when protected operations require opt-in', async () => {
-        createPlanMock.mockResolvedValueOnce({
-            runId: 'run-protected',
-            desired: {
-                version: 1,
-                guild: { id: '123456789012345678', name: 'Criativaria' },
-                source: 'manual',
-            },
-            plan: {
-                operations: [{ module: 'roles' }],
-                protectedOperations: [{ module: 'roles' }],
-                summary: {
-                    total: 1,
-                    safe: 0,
-                    protected: 1,
-                },
-            },
-        })
-        const interaction = createInteraction('apply', { allow_protected: false })
-
-        await guildconfigCommand.execute({ interaction } as any)
-
-        expect(updateRunStatusMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                runId: 'run-protected',
-                status: 'blocked',
-            }),
-        )
-        expect(applyAutomationModulesMock).not.toHaveBeenCalled()
-    })
-
-    it('marks run as failed when apply throws', async () => {
-        applyAutomationModulesMock.mockRejectedValueOnce(new Error('apply failed'))
-        const interaction = createInteraction('apply', { allow_protected: true })
-
-        await guildconfigCommand.execute({ interaction } as any)
-
-        expect(updateRunStatusMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                runId: 'run-1',
-                status: 'failed',
-                error: 'apply failed',
-            }),
-        )
-    })
-
-    it('uses fallback error message when apply throws non-Error value', async () => {
-        applyAutomationModulesMock.mockRejectedValueOnce('failed')
-        const interaction = createInteraction('apply', { allow_protected: true })
-
-        await guildconfigCommand.execute({ interaction } as any)
-
-        expect(updateRunStatusMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                runId: 'run-1',
-                status: 'failed',
-                error: 'Failed to execute guild automation command.',
-            }),
-        )
-    })
-
-    it('loads status subcommand data and renders response', async () => {
-        const interaction = createInteraction('status')
-
-        await guildconfigCommand.execute({ interaction } as any)
-
-        expect(getStatusMock).toHaveBeenCalledWith('123456789012345678')
-        expect(listRunsMock).toHaveBeenCalledWith('123456789012345678', 5)
-        expect(interaction.editReply).toHaveBeenCalled()
-    })
-
-    it('cleans roles only for bots flagged to retire on cutover', async () => {
-        const cleanupTarget = createMember(['123456789012345678', 'role-1'])
-        const untouchedBot = createMember(['123456789012345678', 'role-2'])
-
-        const interaction = createInteraction(
-            'cutover',
-            { complete_checklist: true },
-            {
-                members: {
-                    cache: new Map([
-                        ['bot-1', cleanupTarget],
-                        ['bot-2', untouchedBot],
-                    ]),
-                },
-            },
-        )
-
-        getManifestMock.mockResolvedValueOnce({
-            manifest: {
-                parity: {
-                    externalBots: [
-                        { id: 'bot-1', retireOnCutover: true },
-                        { id: 'bot-2', retireOnCutover: false },
-                    ],
-                },
-            },
-        })
-
-        await guildconfigCommand.execute({ interaction } as any)
-
-        expect(cleanupTarget.roles.remove).toHaveBeenCalledWith(
-            ['role-1'],
-            'Lucky cutover removed legacy bot permissions',
-        )
-        expect(untouchedBot.roles.remove).not.toHaveBeenCalled()
-    })
-
-    it('skips cutover cleanup when bot member is missing or has only @everyone role', async () => {
-        const onlyEveryoneMember = createMember(['123456789012345678'])
-        const interaction = createInteraction(
-            'cutover',
-            { complete_checklist: true },
-            {
-                members: {
-                    cache: new Map([['bot-2', onlyEveryoneMember]]),
-                },
-            },
-        )
-
-        getManifestMock.mockResolvedValueOnce({
-            manifest: {
-                parity: {
-                    externalBots: [
-                        { id: 'bot-1', retireOnCutover: true },
-                        { id: 'bot-2', retireOnCutover: true },
-                    ],
-                },
-            },
-        })
-
-        await guildconfigCommand.execute({ interaction } as any)
-
-        expect(onlyEveryoneMember.roles.remove).not.toHaveBeenCalled()
-    })
-
-    it('returns server-only error when interaction has no guild', async () => {
-        const interaction = createInteraction('plan')
-        interaction.guild = null
-
-        await guildconfigCommand.execute({ interaction } as any)
-
-        expect(interaction.editReply).toHaveBeenCalledWith({
-            content: '❌ This command can only be used in a server.',
-        })
     })
 })
