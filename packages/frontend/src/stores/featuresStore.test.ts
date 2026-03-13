@@ -88,6 +88,21 @@ describe('featuresStore', () => {
                 scope: 'global',
             })
         })
+
+        test('classifies forbidden failures for global toggles', async () => {
+            vi.mocked(api.features.getGlobalToggles).mockRejectedValue(
+                new ApiError(403, 'Access denied'),
+            )
+
+            await useFeaturesStore.getState().fetchGlobalToggles()
+
+            expect(useFeaturesStore.getState().loadError).toEqual({
+                kind: 'forbidden',
+                message: 'Access denied',
+                status: 403,
+                scope: 'global',
+            })
+        })
     })
 
     describe('fetchServerToggles', () => {
@@ -117,6 +132,21 @@ describe('featuresStore', () => {
             expect(useFeaturesStore.getState().loadError).toEqual({
                 kind: 'upstream',
                 message: 'fail',
+                scope: 'server',
+            })
+        })
+
+        test('classifies network failures for server toggles', async () => {
+            vi.mocked(api.features.getServerToggles).mockRejectedValue(
+                new ApiError(0, 'offline'),
+            )
+
+            await useFeaturesStore.getState().fetchServerToggles('guild-9')
+
+            expect(useFeaturesStore.getState().loadError).toEqual({
+                kind: 'network',
+                message: 'offline',
+                status: 0,
                 scope: 'server',
             })
         })
@@ -200,6 +230,20 @@ describe('featuresStore', () => {
             useFeaturesStore.getState().clearLoadError()
 
             expect(useFeaturesStore.getState().loadError).toBeNull()
+        })
+    })
+
+    describe('error classification fallback', () => {
+        test('uses generic upstream message for unknown errors', async () => {
+            vi.mocked(api.features.list).mockRejectedValue('unparseable error')
+
+            await useFeaturesStore.getState().fetchFeatures()
+
+            expect(useFeaturesStore.getState().loadError).toEqual({
+                kind: 'upstream',
+                message: 'Feature data is currently unavailable',
+                scope: 'catalog',
+            })
         })
     })
 })
