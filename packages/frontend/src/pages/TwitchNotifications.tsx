@@ -19,6 +19,8 @@ interface TwitchNotification {
     discordChannelId: string
 }
 
+const TWITCH_LOADING_SKELETON_KEYS = ['tw-loading-1', 'tw-loading-2', 'tw-loading-3']
+
 export default function TwitchNotificationsPage() {
     const { selectedGuild } = useGuildSelection()
     const guildId = selectedGuild?.id
@@ -188,9 +190,9 @@ export default function TwitchNotificationsPage() {
         if (isLoading) {
             return (
                 <div className='space-y-2'>
-                    {[...Array(3)].map((_, index) => (
+                    {TWITCH_LOADING_SKELETON_KEYS.map((key) => (
                         <div
-                            key={index}
+                            key={key}
                             className='h-14 rounded-lg bg-lucky-bg-tertiary animate-pulse'
                         />
                     ))}
