@@ -73,8 +73,17 @@ export interface GuildAutomationOnboarding {
 }
 
 export interface GuildAutomationModeration {
-    automod?: Record<string, unknown>
-    moderationSettings?: Record<string, unknown>
+    automod?: {
+        exemptRoles?: string[]
+        exemptChannels?: string[]
+        [key: string]: unknown
+    }
+    moderationSettings?: {
+        muteRoleId?: string | null
+        modRoleIds?: string[]
+        adminRoleIds?: string[]
+        [key: string]: unknown
+    }
 }
 
 export interface GuildAutomationAutoMessage {
