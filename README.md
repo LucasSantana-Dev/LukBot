@@ -216,6 +216,8 @@ verification in CI or local checks.
 Sonar main-gate reliability checks are strict on new code: use deterministic
 string sorting (`localeCompare`), keyboard-accessible UI interactions for
 clickable controls, and bounded parsing logic for user-facing text handling.
+Bundle-size PR checks export `YOUTUBE_DL_SKIP_DOWNLOAD=true` to keep
+`youtube-dl-exec` postinstall deterministic under GitHub API rate limits.
 
 ### Remote Deploy (No SSH)
 
