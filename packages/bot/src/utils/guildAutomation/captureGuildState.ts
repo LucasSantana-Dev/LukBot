@@ -15,6 +15,19 @@ import {
     type GuildAutomationManifestDocument,
 } from '@lucky/shared/services'
 
+function isMissingOnboardingError(error: unknown): boolean {
+    if (typeof error !== 'object' || error === null) {
+        return false
+    }
+
+    const maybeError = error as {
+        status?: unknown
+        code?: unknown
+    }
+
+    return maybeError.status === 404 || maybeError.code === 10005
+}
+
 function mapChannelType(type: ChannelType): string {
     return ChannelType[type] ?? String(type)
 }
@@ -49,6 +62,7 @@ async function captureParity(guild: Guild, botUserId?: string) {
         .map((member) => ({
             id: member.id,
             name: member.user.username,
+            retireOnCutover: false,
         }))
 
     return {
@@ -84,7 +98,13 @@ export async function captureGuildAutomationState(
     guild: Guild,
     botUserId?: string,
 ): Promise<GuildAutomationManifestDocument> {
-    const onboarding = await guild.fetchOnboarding().catch(() => null)
+    const onboarding = await guild.fetchOnboarding().catch((error: unknown) => {
+        if (isMissingOnboardingError(error)) {
+            return null
+        }
+
+        throw error
+    })
 
     const roles = [...guild.roles.cache.values()]
         .filter((role) => role.id !== guild.id)

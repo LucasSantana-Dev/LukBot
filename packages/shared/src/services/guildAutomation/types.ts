@@ -117,6 +117,7 @@ export interface GuildAutomationParity {
     externalBots?: Array<{
         id: string
         name: string
+        retireOnCutover?: boolean
     }>
     checklist?: GuildAutomationParityChecklistItem[]
     cutoverReady?: boolean

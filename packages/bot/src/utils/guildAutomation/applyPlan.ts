@@ -14,6 +14,7 @@ import {
     type GuildAutomationManifestDocument,
     type GuildAutomationPlan,
 } from '@lucky/shared/services'
+import { errorLog } from '@lucky/shared/utils'
 
 type ApplyResult = {
     appliedModules: string[]
@@ -104,6 +105,25 @@ function findChannel(guild: Guild, id: string): GuildBasedChannel | null {
     return guild.channels.cache.get(id) ?? null
 }
 
+function shouldIgnoreProtectedDeleteError(error: unknown): boolean {
+    if (typeof error !== 'object' || error === null) {
+        return false
+    }
+
+    const maybeError = error as {
+        status?: unknown
+        code?: unknown
+    }
+
+    return (
+        maybeError.status === 403 ||
+        maybeError.status === 404 ||
+        maybeError.code === 50013 ||
+        maybeError.code === 10003 ||
+        maybeError.code === 10008
+    )
+}
+
 async function applyRolesAndChannels(
     guild: Guild,
     desired: GuildAutomationManifestDocument,
@@ -182,8 +202,21 @@ async function applyRolesAndChannels(
 
         try {
             await channel.delete('Lucky guild automation protected-delete apply')
-        } catch {
-            continue
+        } catch (error) {
+            if (shouldIgnoreProtectedDeleteError(error)) {
+                errorLog({
+                    message:
+                        'Failed to delete channel during guild automation apply',
+                    error,
+                    data: {
+                        guildId: guild.id,
+                        channelId: channel.id,
+                    },
+                })
+                continue
+            }
+
+            throw error
         }
     }
 }
