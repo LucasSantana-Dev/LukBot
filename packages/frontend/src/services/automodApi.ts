@@ -1,5 +1,5 @@
 import type { AxiosInstance } from 'axios'
-import type { AutoModSettings } from '@/types'
+import type { AutoModSettings, AutoModTemplate } from '@/types'
 
 export function createAutoModApi(apiClient: AxiosInstance) {
     return {
@@ -12,6 +12,15 @@ export function createAutoModApi(apiClient: AxiosInstance) {
                 `/guilds/${guildId}/automod/settings`,
                 settings,
             ),
+        listTemplates: (guildId: string) =>
+            apiClient.get<{ templates: AutoModTemplate[] }>(
+                `/guilds/${guildId}/automod/templates`,
+            ),
+        applyTemplate: (guildId: string, templateId: string) =>
+            apiClient.post<{
+                settings: AutoModSettings
+                templateId: string
+            }>(`/guilds/${guildId}/automod/templates/${templateId}/apply`),
         addExemptChannel: (guildId: string, channelId: string) =>
             apiClient.post<{ success: boolean }>(
                 `/guilds/${guildId}/automod/exempt/channels`,
