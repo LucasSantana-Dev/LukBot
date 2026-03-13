@@ -319,6 +319,35 @@ describe('GuildAccessService', () => {
         expect(mockResolveEffectiveAccess).not.toHaveBeenCalled()
     })
 
+    test('resolveGuildContext does not require bot lookup for admin guilds', async () => {
+        const adminGuild = makeGuild('909', { owner: true })
+        const adminAccess = {
+            overview: 'manage',
+            settings: 'manage',
+            moderation: 'manage',
+            automation: 'manage',
+            music: 'manage',
+            integrations: 'manage',
+        }
+
+        mockGetUserGuilds.mockResolvedValue([adminGuild])
+        mockResolveEffectiveAccess.mockResolvedValue(adminAccess)
+
+        const context = await guildAccessService.resolveGuildContext(
+            SESSION,
+            adminGuild.id,
+        )
+
+        expect(context).toMatchObject({
+            guildId: adminGuild.id,
+            isAdmin: true,
+            hasBot: true,
+            canManageRbac: true,
+        })
+        expect(mockHasBotInGuild).not.toHaveBeenCalled()
+        expect(mockGetGuildMemberContext).not.toHaveBeenCalled()
+    })
+
     test('listAuthorizedGuilds returns retryable error when all member-context lookups fail', async () => {
         const guilds = [makeGuild('101'), makeGuild('202')]
 

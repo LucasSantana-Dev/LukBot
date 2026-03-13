@@ -31,40 +31,6 @@ export interface AuthorizedGuild extends GuildWithBotStatus {
 }
 
 class GuildAccessService {
-    private readonly userGuildCache = new Map<
-        string,
-        {
-            guilds: DiscordGuild[]
-            expiresAt: number
-        }
-    >()
-    private readonly userGuildCacheTtlMs = 30_000
-
-    private getCacheKey(session: SessionData): string {
-        return `${session.user.id}:${session.accessToken.slice(0, 24)}`
-    }
-
-    private getCachedGuilds(session: SessionData): DiscordGuild[] | null {
-        const entry = this.userGuildCache.get(this.getCacheKey(session))
-        if (!entry) {
-            return null
-        }
-
-        if (entry.expiresAt <= Date.now()) {
-            this.userGuildCache.delete(this.getCacheKey(session))
-            return null
-        }
-
-        return entry.guilds
-    }
-
-    private setCachedGuilds(session: SessionData, guilds: DiscordGuild[]): void {
-        this.userGuildCache.set(this.getCacheKey(session), {
-            guilds,
-            expiresAt: Date.now() + this.userGuildCacheTtlMs,
-        })
-    }
-
     private extractStatusCode(error: unknown): number | null {
         if (error instanceof DiscordApiError) {
             return error.statusCode
@@ -92,31 +58,9 @@ class GuildAccessService {
         session: SessionData,
     ): Promise<DiscordGuild[]> {
         try {
-            const guilds = await discordOAuthService.getUserGuilds(
-                session.accessToken,
-            )
-            this.setCachedGuilds(session, guilds)
-            return guilds
+            return await discordOAuthService.getUserGuilds(session.accessToken)
         } catch (error) {
             const statusCode = this.extractStatusCode(error)
-            const cachedGuilds = this.getCachedGuilds(session)
-
-            if (
-                cachedGuilds &&
-                (statusCode === 429 ||
-                    (statusCode !== null && statusCode >= 500))
-            ) {
-                errorLog({
-                    message:
-                        'Using cached guild list after Discord guild fetch failure',
-                    data: {
-                        userId: session.user.id,
-                        statusCode,
-                        guildCount: cachedGuilds.length,
-                    },
-                })
-                return cachedGuilds
-            }
 
             if (statusCode === 401) {
                 throw AppError.unauthorized(
@@ -154,7 +98,10 @@ class GuildAccessService {
                 guild.permissions,
                 guild.permissions_new,
             )
-        const hasBot = await guildService.hasBotInGuild(guild.id)
+
+        const hasBot = isAdmin
+            ? true
+            : await guildService.hasBotInGuild(guild.id)
         const memberContext =
             hasBot && !isAdmin
                 ? await guildService.getGuildMemberContext(guild.id, userId)

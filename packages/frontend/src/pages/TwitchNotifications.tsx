@@ -58,8 +58,8 @@ export default function TwitchNotificationsPage() {
     }, [guildId])
 
     useEffect(() => {
-        void loadNotifications()
-        void loadChannels()
+        loadNotifications().catch(() => {})
+        loadChannels().catch(() => {})
     }, [loadNotifications, loadChannels])
 
     const parseTwitchLogin = (value: string): string | null => {
@@ -79,7 +79,7 @@ export default function TwitchNotificationsPage() {
                 const firstSegment = url.pathname
                     .split('/')
                     .map((segment) => segment.trim())
-                    .filter(Boolean)[0]
+                    .find(Boolean)
                 login = firstSegment ?? ''
             } catch {
                 return null
@@ -143,6 +143,63 @@ export default function TwitchNotificationsPage() {
         }
     }
 
+    const renderNotifications = () => {
+        if (isLoading) {
+            return (
+                <div className='space-y-2'>
+                    {[...Array(3)].map((_, i) => (
+                        <div
+                            key={i}
+                            className='h-14 rounded-lg bg-lucky-bg-tertiary animate-pulse'
+                        />
+                    ))}
+                </div>
+            )
+        }
+
+        if (notifications.length === 0) {
+            return (
+                <div className='text-center py-12 text-lucky-text-tertiary'>
+                    No Twitch notifications configured
+                </div>
+            )
+        }
+
+        return (
+            <div className='space-y-1'>
+                {notifications.map((notif) => (
+                    <div
+                        key={notif.id}
+                        className='group flex items-center gap-3 rounded-lg bg-lucky-bg-tertiary px-4 py-3 transition-colors hover:bg-lucky-bg-active'
+                    >
+                        <div className='flex h-8 w-8 shrink-0 items-center justify-center rounded bg-purple-600/20'>
+                            <Tv className='h-4 w-4 text-purple-400' />
+                        </div>
+                        <div className='min-w-0 flex-1'>
+                            <p className='text-sm font-medium text-white'>
+                                {notif.twitchLogin}
+                            </p>
+                            <p className='flex items-center gap-1 text-xs text-lucky-text-tertiary'>
+                                <Hash className='h-3 w-3' />
+                                {channels.find(
+                                    (channel) =>
+                                        channel.id === notif.discordChannelId,
+                                )?.name ?? notif.discordChannelId}
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => handleRemove(notif.twitchUserId)}
+                            className='cursor-pointer rounded-md p-1.5 text-lucky-text-tertiary opacity-0 transition-colors group-hover:opacity-100 hover:bg-lucky-error/10 hover:text-lucky-error'
+                            aria-label={`Remove ${notif.twitchLogin}`}
+                        >
+                            <Trash2 className='h-4 w-4' />
+                        </button>
+                    </div>
+                ))}
+            </div>
+        )
+    }
+
     if (!selectedGuild) {
         return (
             <div className='flex flex-col items-center justify-center h-64 text-lucky-text-secondary'>
@@ -167,7 +224,7 @@ export default function TwitchNotificationsPage() {
                     </span>
                 </div>
                 <button
-                onClick={() => setShowAdd(!showAdd)}
+                    onClick={() => setShowAdd(!showAdd)}
                     className='flex cursor-pointer items-center gap-2 rounded-lg bg-purple-600/10 px-3 py-1.5 text-sm text-purple-400 transition-colors hover:bg-purple-600/20'
                 >
                     <Plus className='w-4 h-4' />
@@ -240,49 +297,7 @@ export default function TwitchNotificationsPage() {
                 </div>
             )}
 
-            {isLoading ? (
-                <div className='space-y-2'>
-                    {[...Array(3)].map((_, i) => (
-                        <div
-                            key={i}
-                            className='h-14 rounded-lg bg-lucky-bg-tertiary animate-pulse'
-                        />
-                    ))}
-                </div>
-            ) : notifications.length === 0 ? (
-                <div className='text-center py-12 text-lucky-text-tertiary'>
-                    No Twitch notifications configured
-                </div>
-            ) : (
-                <div className='space-y-1'>
-                    {notifications.map((notif) => (
-                        <div
-                            key={notif.id}
-                            className='flex items-center gap-3 px-4 py-3 rounded-lg bg-lucky-bg-tertiary hover:bg-lucky-bg-active transition-colors group'
-                        >
-                            <div className='w-8 h-8 rounded bg-purple-600/20 flex items-center justify-center shrink-0'>
-                                <Tv className='w-4 h-4 text-purple-400' />
-                            </div>
-                            <div className='flex-1 min-w-0'>
-                                <p className='text-sm font-medium text-white'>
-                                    {notif.twitchLogin}
-                                </p>
-                                <p className='text-xs text-lucky-text-tertiary flex items-center gap-1'>
-                                    <Hash className='w-3 h-3' />
-                                    {notif.discordChannelId}
-                                </p>
-                            </div>
-                            <button
-                                onClick={() => handleRemove(notif.twitchUserId)}
-                                className='p-1.5 rounded-md text-lucky-text-tertiary hover:text-lucky-error hover:bg-lucky-error/10 transition-colors opacity-0 group-hover:opacity-100 cursor-pointer'
-                                aria-label={`Remove ${notif.twitchLogin}`}
-                            >
-                                <Trash2 className='w-4 h-4' />
-                            </button>
-                        </div>
-                    ))}
-                </div>
-            )}
+            {renderNotifications()}
         </div>
     )
 }

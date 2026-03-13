@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
     Settings,
@@ -70,15 +70,20 @@ export default function ServerSettingsPage() {
         Array<{ id: string; name: string }>
     >([])
     const [rbacGrants, setRbacGrants] = useState<RoleGrant[]>([])
+    const rbacRequestVersion = useRef(0)
 
     const canManageRbac =
         memberContext?.canManageRbac ?? selectedGuild?.canManageRbac ?? false
 
     const loadRbac = async (guildId: string) => {
+        const requestVersion = ++rbacRequestVersion.current
         setRbacLoading(true)
         setRbacRolesError(null)
         try {
             const res = await api.guilds.getRbac(guildId)
+            if (requestVersion !== rbacRequestVersion.current) {
+                return
+            }
             setRbacRoles(res.data.roles)
             setRbacGrants(res.data.grants)
             if (res.data.roles.length === 0) {
@@ -87,11 +92,17 @@ export default function ServerSettingsPage() {
                 )
             }
         } catch {
+            if (requestVersion !== rbacRequestVersion.current) {
+                return
+            }
             setRbacRoles([])
             setRbacGrants([])
             setRbacRolesError('Failed to load role options for access rules.')
             toast.error('Failed to load access control policy')
         } finally {
+            if (requestVersion !== rbacRequestVersion.current) {
+                return
+            }
             setRbacLoading(false)
         }
     }
@@ -110,9 +121,11 @@ export default function ServerSettingsPage() {
 
     useEffect(() => {
         if (!selectedGuild?.id || !canManageRbac) {
+            rbacRequestVersion.current += 1
             setRbacRoles([])
             setRbacGrants([])
             setRbacRolesError(null)
+            setRbacLoading(false)
             return
         }
 

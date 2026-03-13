@@ -19,13 +19,15 @@ export function createAutoModApi(apiClient: AutoModApiClient) {
             ),
         listTemplates: (guildId: string) =>
             apiClient.get<{ templates: AutoModTemplate[] }>(
-                `/guilds/${guildId}/automod/templates`,
+                `/guilds/${encodeURIComponent(guildId)}/automod/templates`,
             ),
         applyTemplate: (guildId: string, templateId: string) =>
             apiClient.post<{
                 settings: AutoModSettings
                 templateId: string
-            }>(`/guilds/${guildId}/automod/templates/${templateId}/apply`),
+            }>(
+                `/guilds/${encodeURIComponent(guildId)}/automod/templates/${encodeURIComponent(templateId)}/apply`,
+            ),
         addExemptChannel: (guildId: string, channelId: string) =>
             apiClient.post<{ success: boolean }>(
                 `/guilds/${guildId}/automod/exempt/channels`,

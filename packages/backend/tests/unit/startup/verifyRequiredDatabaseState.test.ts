@@ -25,14 +25,24 @@ describe('verifyRequiredDatabaseState', () => {
     })
 
     test('maps missing relation error to actionable migration message', async () => {
-        countMock.mockRejectedValue({
+        const prismaError = {
             code: 'P2021',
             meta: { table: 'guild_role_grants' },
-        })
+        }
+        countMock.mockRejectedValue(prismaError)
 
-        await expect(verifyRequiredDatabaseState()).rejects.toThrow(
-            'Required database relation "guild_role_grants" is missing. Run migrations before starting backend.',
-        )
+        try {
+            await verifyRequiredDatabaseState()
+            throw new Error('Expected verification to throw')
+        } catch (error) {
+            expect(error).toBeInstanceOf(Error)
+            expect(error).toMatchObject({
+                code: 'ERR_DB_SCHEMA_MISSING',
+                message:
+                    'Required database relation "guild_role_grants" is missing. Run migrations before starting backend.',
+            })
+            expect(error).toHaveProperty('cause', prismaError)
+        }
     })
 
     test('uses default table name when prisma error omits meta.table', async () => {

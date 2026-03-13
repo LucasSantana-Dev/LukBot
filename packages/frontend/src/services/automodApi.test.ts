@@ -38,6 +38,20 @@ describe('createAutoModApi', () => {
         )
     })
 
+    test('encodes guild and template path segments for template endpoints', () => {
+        const api = createAutoModApi(apiClient)
+
+        api.listTemplates('guild with spaces')
+        api.applyTemplate('guild with spaces', 'strict/template')
+
+        expect(apiClient.get).toHaveBeenCalledWith(
+            '/guilds/guild%20with%20spaces/automod/templates',
+        )
+        expect(apiClient.post).toHaveBeenCalledWith(
+            '/guilds/guild%20with%20spaces/automod/templates/strict%2Ftemplate/apply',
+        )
+    })
+
     test('maps exempt channels and roles endpoints', () => {
         const api = createAutoModApi(apiClient)
 
