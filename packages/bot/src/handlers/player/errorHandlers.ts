@@ -45,11 +45,48 @@ function toErrorInstance(error: unknown): Error | undefined {
     return error instanceof Error ? error : undefined
 }
 
+function safeErrorLog(payload: {
+    message: string
+    error?: Error
+    data?: Record<string, unknown>
+}): void {
+    try {
+        errorLog(payload)
+    } catch {}
+}
+
+function logHandlerFailure(message: string, error: unknown): void {
+    safeErrorLog({
+        message,
+        error: toErrorInstance(error),
+        data: toErrorDetails(error),
+    })
+}
+
+function runSafely(message: string, fn: () => void): void {
+    try {
+        fn()
+    } catch (error) {
+        logHandlerFailure(message, error)
+    }
+}
+
+async function runSafelyAsync(
+    message: string,
+    fn: () => Promise<void>,
+): Promise<void> {
+    try {
+        await fn()
+    } catch (error) {
+        logHandlerFailure(message, error)
+    }
+}
+
 export const setupErrorHandlers = (player: PlayerEvents): void => {
     player.events.on('error', (queue: GuildQueue, error: Error) => {
-        try {
+        runSafely('Queue error handler failed:', () => {
             const details = toErrorDetails(error)
-            errorLog({
+            safeErrorLog({
                 message: `Error in queue ${queue?.guild?.name || 'unknown'}:`,
                 error: toErrorInstance(error),
                 data: {
@@ -65,93 +102,56 @@ export const setupErrorHandlers = (player: PlayerEvents): void => {
                 details.errorMessage.includes('ETIMEDOUT') ||
                 details.errorMessage.includes('Connection reset by peer')
 
-            if (isConnectionError && queue?.connection) {
+            const connection = queue?.connection
+            if (isConnectionError && connection) {
                 debugLog({
                     message:
                         'Detected connection error, attempting recovery...',
                 })
-                try {
-                    if (queue.connection.state.status !== 'ready') {
-                        queue.connection.rejoin()
+                runSafely('Failed to recover from connection error:', () => {
+                    if (connection.state.status !== 'ready') {
+                        connection.rejoin()
                         debugLog({
                             message:
                                 'Attempting to recover from connection error',
                         })
                     }
-                } catch (recoveryError) {
-                    errorLog({
-                        message: 'Failed to recover from connection error:',
-                        error: toErrorInstance(recoveryError),
-                        data: toErrorDetails(recoveryError),
-                    })
-                }
+                })
             }
-        } catch (handlerError) {
-            errorLog({
-                message: 'Queue error handler failed:',
-                error: toErrorInstance(handlerError),
-                data: toErrorDetails(handlerError),
-            })
-        }
+        })
     })
 
     player.events.on('playerError', (queue: GuildQueue, error: Error) => {
-        void (async () => {
-            try {
-                await handlePlayerError(queue, error)
-            } catch (handlerError) {
-                errorLog({
-                    message: 'Player error event handler failed:',
-                    error: toErrorInstance(handlerError),
-                    data: toErrorDetails(handlerError),
-                })
-            }
-        })()
+        void runSafelyAsync('Player error event handler failed:', async () => {
+            await handlePlayerError(queue, error)
+        })
     })
 
     player.events.on('debug', (queue: GuildQueue, message: string) => {
-        try {
+        runSafely('Player queue debug handler failed:', () => {
             debugLog({
                 message: `Player debug from ${queue?.guild?.name ?? 'unknown'}: ${message}`,
             })
-        } catch (handlerError) {
-            errorLog({
-                message: 'Player queue debug handler failed:',
-                error: toErrorInstance(handlerError),
-                data: toErrorDetails(handlerError),
-            })
-        }
+        })
     })
 
     if (typeof player.on === 'function') {
         player.on('error', (error: Error) => {
-            try {
-                errorLog({
+            runSafely('Player top-level error handler failed:', () => {
+                safeErrorLog({
                     message: 'Unhandled player error:',
                     error: toErrorInstance(error),
                     data: toErrorDetails(error),
                 })
-            } catch (handlerError) {
-                errorLog({
-                    message: 'Player top-level error handler failed:',
-                    error: toErrorInstance(handlerError),
-                    data: toErrorDetails(handlerError),
-                })
-            }
+            })
         })
 
         player.on('debug', (message: string) => {
-            try {
+            runSafely('Player top-level debug handler failed:', () => {
                 debugLog({
                     message: `Player runtime debug: ${message}`,
                 })
-            } catch (handlerError) {
-                errorLog({
-                    message: 'Player top-level debug handler failed:',
-                    error: toErrorInstance(handlerError),
-                    data: toErrorDetails(handlerError),
-                })
-            }
+            })
         })
     }
 }
@@ -285,19 +285,14 @@ const handlePlayerError = async (
                     queue.node.skip()
                 }
             } catch (recoveryError) {
-                errorLog({
-                    message: 'Failed to recover from stream extraction error:',
-                    error: toErrorInstance(recoveryError),
-                    data: toErrorDetails(recoveryError),
-                })
+                logHandlerFailure(
+                    'Failed to recover from stream extraction error:',
+                    recoveryError,
+                )
                 queue.node.skip()
             }
         }
     } catch (handlerError) {
-        errorLog({
-            message: 'Error in player error handler:',
-            error: toErrorInstance(handlerError),
-            data: toErrorDetails(handlerError),
-        })
+        logHandlerFailure('Error in player error handler:', handlerError)
     }
 }
