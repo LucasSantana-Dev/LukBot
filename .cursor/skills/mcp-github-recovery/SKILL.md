@@ -107,14 +107,18 @@ install -m 0755 github-mcp-server "$HOME/.local/bin/github-mcp-server"
 6. Align Codex/OpenCode/Cursor wrappers to the official binary with `gh` token fallback:
 
 ```bash
+mkdir -p "$HOME/.codex/scripts"
 cat > "$HOME/.codex/scripts/run-mcp-github.sh" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
 binary="$HOME/.local/bin/github-mcp-server"
-token="${GITHUB_PERSONAL_ACCESS_TOKEN:-${GITHUB_TOKEN:-}}"
-if [[ -z "$token" ]] && command -v gh >/dev/null 2>&1; then
+token=""
+if command -v gh >/dev/null 2>&1; then
   token="$(gh auth token 2>/dev/null || true)"
+fi
+if [[ -z "$token" ]]; then
+  token="${GITHUB_PERSONAL_ACCESS_TOKEN:-${GITHUB_TOKEN:-}}"
 fi
 if [[ -z "$token" ]]; then
   echo "GitHub auth is not available via gh or environment" >&2
@@ -133,6 +137,8 @@ Mirror the same wrapper logic into:
 
 - `~/.config/opencode/scripts/run-mcp-github.sh`
 - `~/.cursor/scripts/run-mcp-github.sh`
+
+Create each parent `scripts/` directory before writing the mirrored wrapper.
 
 7. Verify Codex sees the repaired server and can execute a GitHub MCP call:
 
