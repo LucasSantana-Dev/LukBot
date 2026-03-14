@@ -79,6 +79,8 @@ packages/
 - Dynamic Discord presence rotation with live guild/member/session stats and command CTA
 - Autoplay recommendations use anti-repeat filtering with queue buffering so shuffle stays useful during autoplay
 - Autoplay command recovers active guild queue from player cache fallback to avoid false queue-missing errors during active playback
+- Autoplay toggles now respond immediately while queue replenishment runs in the background, reducing interaction timeout risk
+- Player error/debug handlers are guarded and emit structured diagnostics for safer runtime recovery
 - Now-playing card updates in place to avoid channel spam on track changes
 - Video/audio downloads with format selection and progress tracking
 - Moderation: warn, mute, kick, ban with case tracking

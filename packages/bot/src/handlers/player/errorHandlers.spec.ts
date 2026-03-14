@@ -15,7 +15,8 @@ jest.mock('@lucky/shared/utils', () => ({
 }))
 
 jest.mock('../../utils/music/youtubeErrorHandler', () => ({
-    analyzeYouTubeError: (...args: unknown[]) => analyzeYouTubeErrorMock(...args),
+    analyzeYouTubeError: (...args: unknown[]) =>
+        analyzeYouTubeErrorMock(...args),
     logYouTubeError: (...args: unknown[]) => logYouTubeErrorMock(...args),
 }))
 
@@ -33,7 +34,17 @@ jest.mock('../../utils/music/search/providerHealth', () => ({
     },
 }))
 
-type PlayerErrorHandler = (queue: any, error: Error) => Promise<void>
+type QueueErrorHandler = (queue: any, error: Error) => void
+type PlayerErrorHandler = (queue: any, error: Error, track?: any) => unknown
+type DebugHandler = (queue: any, message: string) => void
+type TopLevelErrorHandler = (error: Error) => void
+type TopLevelDebugHandler = (message: string) => void
+
+async function flushPromises(): Promise<void> {
+    await new Promise<void>((resolve) => {
+        setImmediate(() => resolve())
+    })
+}
 
 describe('setupErrorHandlers', () => {
     beforeEach(() => {
@@ -48,13 +59,36 @@ describe('setupErrorHandlers', () => {
     })
 
     it('records provider failure and recovers stream extraction with alternative track', async () => {
-        const handlers: Record<string, PlayerErrorHandler> = {}
+        const queueHandlers: Record<
+            string,
+            QueueErrorHandler | PlayerErrorHandler | DebugHandler
+        > = {}
+        const playerHandlers: Record<
+            string,
+            TopLevelErrorHandler | TopLevelDebugHandler
+        > = {}
         const player = {
             events: {
-                on: jest.fn((event: string, handler: PlayerErrorHandler) => {
-                    handlers[event] = handler
-                }),
+                on: jest.fn(
+                    (
+                        event: string,
+                        handler:
+                            | QueueErrorHandler
+                            | PlayerErrorHandler
+                            | DebugHandler,
+                    ) => {
+                        queueHandlers[event] = handler
+                    },
+                ),
             },
+            on: jest.fn(
+                (
+                    event: string,
+                    handler: TopLevelErrorHandler | TopLevelDebugHandler,
+                ) => {
+                    playerHandlers[event] = handler
+                },
+            ),
         }
         setupErrorHandlers(player as any)
 
@@ -81,7 +115,13 @@ describe('setupErrorHandlers', () => {
             },
         }
 
-        await handlers.playerError(queue as any, new Error('Could not extract stream'))
+        expect(playerHandlers.error).toEqual(expect.any(Function))
+        expect(playerHandlers.debug).toEqual(expect.any(Function))
+        ;(queueHandlers.playerError as PlayerErrorHandler)(
+            queue as any,
+            new Error('Could not extract stream'),
+        )
+        await flushPromises()
 
         expect(recordFailureMock).toHaveBeenCalledWith(
             'youtube',
@@ -95,13 +135,36 @@ describe('setupErrorHandlers', () => {
     })
 
     it('skips track on parser errors when skip config is enabled', async () => {
-        const handlers: Record<string, PlayerErrorHandler> = {}
+        const queueHandlers: Record<
+            string,
+            QueueErrorHandler | PlayerErrorHandler | DebugHandler
+        > = {}
+        const playerHandlers: Record<
+            string,
+            TopLevelErrorHandler | TopLevelDebugHandler
+        > = {}
         const player = {
             events: {
-                on: jest.fn((event: string, handler: PlayerErrorHandler) => {
-                    handlers[event] = handler
-                }),
+                on: jest.fn(
+                    (
+                        event: string,
+                        handler:
+                            | QueueErrorHandler
+                            | PlayerErrorHandler
+                            | DebugHandler,
+                    ) => {
+                        queueHandlers[event] = handler
+                    },
+                ),
             },
+            on: jest.fn(
+                (
+                    event: string,
+                    handler: TopLevelErrorHandler | TopLevelDebugHandler,
+                ) => {
+                    playerHandlers[event] = handler
+                },
+            ),
         }
         setupErrorHandlers(player as any)
         analyzeYouTubeErrorMock.mockReturnValue({
@@ -121,9 +184,91 @@ describe('setupErrorHandlers', () => {
             node: { skip: jest.fn() },
         }
 
-        await handlers.playerError(queue as any, new Error('parser failed'))
+        expect(playerHandlers.error).toEqual(expect.any(Function))
+        expect(playerHandlers.debug).toEqual(expect.any(Function))
+        ;(queueHandlers.playerError as PlayerErrorHandler)(
+            queue as any,
+            new Error('parser failed'),
+        )
+        await flushPromises()
 
         expect(logYouTubeErrorMock).toHaveBeenCalled()
         expect(queue.node.skip).toHaveBeenCalled()
+    })
+
+    it('handles top-level player errors and queue errors without throwing', () => {
+        const queueHandlers: Record<
+            string,
+            QueueErrorHandler | PlayerErrorHandler | DebugHandler
+        > = {}
+        const playerHandlers: Record<
+            string,
+            TopLevelErrorHandler | TopLevelDebugHandler
+        > = {}
+        const player = {
+            events: {
+                on: jest.fn(
+                    (
+                        event: string,
+                        handler:
+                            | QueueErrorHandler
+                            | PlayerErrorHandler
+                            | DebugHandler,
+                    ) => {
+                        queueHandlers[event] = handler
+                    },
+                ),
+            },
+            on: jest.fn(
+                (
+                    event: string,
+                    handler: TopLevelErrorHandler | TopLevelDebugHandler,
+                ) => {
+                    playerHandlers[event] = handler
+                },
+            ),
+        }
+
+        setupErrorHandlers(player as any)
+
+        const queue = {
+            guild: { id: 'guild-1', name: 'Guild 1' },
+            connection: {
+                state: { status: 'disconnected' },
+                rejoin: jest.fn(() => {
+                    throw new Error('rejoin failed')
+                }),
+            },
+        }
+
+        expect(() =>
+            (queueHandlers.error as QueueErrorHandler)(
+                queue,
+                new Error('ECONNRESET test'),
+            ),
+        ).not.toThrow()
+        expect(() =>
+            (playerHandlers.error as TopLevelErrorHandler)(
+                new Error('Unhandled player error'),
+            ),
+        ).not.toThrow()
+
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Unhandled player error:',
+                data: expect.objectContaining({
+                    errorMessage: 'Unhandled player error',
+                }),
+            }),
+        )
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Error in queue Guild 1:',
+                data: expect.objectContaining({
+                    guildId: 'guild-1',
+                    errorMessage: 'ECONNRESET test',
+                }),
+            }),
+        )
     })
 })
