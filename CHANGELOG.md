@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/music health` now shows a **Recommendation feedback** field with the count
   of tracks the user has disliked, giving visibility into autoplay filtering
   state without leaving the health embed.
+- `/queue show` upcoming tracks list now appends an inline **recommendation
+  reason tag** (e.g. `fresh artist rotation`, `similar title mood`) next to
+  autoplay-sourced tracks, making the autoplay decision transparent at a glance.
+- **Now Playing** section in `/queue show` appends a `Recommended because:`
+  line when the current track originated from autoplay.
 
 ### Changed
 
