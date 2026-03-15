@@ -72,7 +72,7 @@ export function isSensitivePath(
 
 export function commandTouchesSensitivePath(
   command,
-  { repoRoot } = {},
+  { cwd = process.cwd(), home = os.homedir(), repoRoot } = {},
 ) {
   if (!command || typeof command !== 'string') return false
   const candidates = [
@@ -82,9 +82,8 @@ export function commandTouchesSensitivePath(
     '~/.aws/',
     '~/.config/fish/config.fish',
     '~/.local/share/opencode/auth.json',
-    `${repoRoot ?? ''}/.env`,
-    `${repoRoot ?? ''}/.cursor/.env.mcp`,
-  ].filter(Boolean)
+    ...(repoRoot && repoRoot !== '/' ? [`${repoRoot}/.env`, `${repoRoot}/.cursor/.env.mcp`] : []),
+  ]
 
   for (const candidate of candidates) {
     if (command.includes(candidate) && !command.includes('.env.example')) {

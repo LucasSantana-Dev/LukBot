@@ -87,7 +87,7 @@ notify() {
                 \"fields\": [
                     {
                         \"name\": \"Commit\",
-                        \"value\": \"\`$commit_sha\` $commit_msg\",
+                        \"value\": \"\'$commit_sha\' $commit_msg\",
                         \"inline\": false
                     }
                 ],
@@ -212,7 +212,7 @@ archive_local_checkout_state() {
         return 0
     fi
 
-    if [[ "$stash_output" != Saved* ]]; then
+    if ! git stash list | grep -qF "$stash_label"; then
         log "ERROR: CHECKOUT_RECOVERY_FAILED (stash failed: $stash_output)"
         return 1
     fi
