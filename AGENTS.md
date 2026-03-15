@@ -20,23 +20,23 @@ At the start of every session:
 
 ### Project skills (`.cursor/skills/`)
 
-| Task                                              | Skill                    |
-| ------------------------------------------------- | ------------------------ |
-| Add/change slash command                          | `discord-commands`       |
-| Play/queue/skip/volume, player lifecycle          | `music-queue-player`     |
-| Schema, migrations, DB/Redis in shared            | `prisma-redis-lucky`     |
-| Docker, compose, local run                        | `lucky-docker-dev`       |
-| Frontend (React, Vite, Tailwind)                  | `frontend-react-vite`    |
-| Backend (Express API, routes, services)           | `backend-express`        |
-| E2E tests, Playwright, browser verification       | `e2e-playwright`         |
-| Docs lookup, web search, MCP usage                | `mcp-docs-search`        |
-| Moderation commands + AutoModService              | `moderation-automod`     |
-| Bot event wiring (messageCreate, memberAdd, etc.) | `event-handlers`         |
-| Embed builder, custom commands, auto-messages     | `management-features`    |
-| Unit tests, Jest ESM mocks, fixing disabled tests | `testing-lucky`          |
-| CI gate triage and required-check recovery        | `lucky-ci-gate-recovery` |
-| Homelab deploy lock/checkout/runtime recovery     | `lucky-deploy-recovery`  |
-| Recover GitHub MCP transport/auth failures        | `mcp-github-recovery`    |
+| Task                                              | Skill                      |
+| ------------------------------------------------- | -------------------------- |
+| Add/change slash command                          | `discord-commands`         |
+| Play/queue/skip/volume, player lifecycle          | `music-queue-player`       |
+| Schema, migrations, DB/Redis in shared            | `prisma-redis-lucky`       |
+| Docker, compose, local run                        | `lucky-docker-dev`         |
+| Workflow green but production stale deploy drift  | `lucky-deploy-recovery`    |
+| Frontend (React, Vite, Tailwind)                  | `frontend-react-vite`      |
+| Backend (Express API, routes, services)           | `backend-express`          |
+| E2E tests, Playwright, browser verification       | `e2e-playwright`           |
+| Docs lookup, web search, MCP usage                | `mcp-docs-search`          |
+| Moderation commands + AutoModService              | `moderation-automod`       |
+| Bot event wiring (messageCreate, memberAdd, etc.) | `event-handlers`           |
+| Embed builder, custom commands, auto-messages     | `management-features`      |
+| Unit tests, Jest ESM mocks, fixing disabled tests | `testing-lucky`            |
+| CI gate triage and required-check recovery        | `lucky-ci-gate-recovery`   |
+| Recover GitHub MCP transport/auth failures        | `mcp-github-recovery`      |
 | OpenCode config, plugins, attach, verification    | `opencode-lucky-workflows` |
 
 ### Ecosystem skills (`.agent-skills/` — from skills.sh)
@@ -95,11 +95,11 @@ Superpowers are installed at **`~/.codex/superpowers`**. To use a skill in chat 
 | `superpowers:writing-plans`                  | You have a spec or requirements for a multi-step task                |
 | `superpowers:writing-skills`                 | Creating, editing, or verifying skills                               |
 
-**Agent behavior:** When the user asks in chat or in a prompt to use a superpowers skill (e.g. “use brainstorming”, “follow TDD”, “run systematic debugging”), run `~/.codex/superpowers/.codex/superpowers-codex use-skill <skill-name>` with the matching name above, then follow the skill’s instructions. Use MCP tools (Context7, filesystem, GitHub, etc.) as needed while applying the skill.
+**Agent behavior:** When the user asks in chat or in a prompt to use a superpowers skill (e.g. "use brainstorming", "follow TDD", "run systematic debugging"), run `~/.codex/superpowers/.codex/superpowers-codex use-skill <skill-name>` with the matching name above, then follow the skill's instructions. Use MCP tools (Context7, filesystem, GitHub, etc.) as needed while applying the skill.
 
 ## MCP tools – when to use
 
-Use these MCPs when they fit the task; don’t force them.
+Use these MCPs when they fit the task; don't force them.
 
 | MCP                                                              | Use for                                                              |
 | ---------------------------------------------------------------- | -------------------------------------------------------------------- |
@@ -128,7 +128,7 @@ Use these MCPs when they fit the task; don’t force them.
 
 Use the **specific specialist and skills** for the task; use **MCP tools** to fix or implement when applicable.
 
-1. **Scope**: Prefer the smallest change that solves the problem. Don’t refactor unrelated code or add abstractions “for the future.”
+1. **Scope**: Prefer the smallest change that solves the problem. Don't refactor unrelated code or add abstractions "for the future."
 2. **Comments**: No redundant or decorative AI comments. Code should be clear from names and structure; comment only when logic is non-obvious.
 3. **Boilerplate**: Avoid extra layers, base classes, or indirection unless the codebase already uses them for that case.
 4. **Secrets / env**: No hardcoded secrets, IPs, or ports. Use `.env` and `docs/` for required vars.
@@ -144,7 +144,6 @@ Use the **specific specialist and skills** for the task; use **MCP tools** to fi
 - Quality: `npm run lint`, `npm run type:check`, `npm run test`
 
 Use Docker for local when available (`docker-compose.dev.yml`). Prefer scripts in `scripts/` for documented operations.
-
 
 - Repo-local OpenCode behavior lives in `opencode.jsonc`, `.opencode/plugins`, and `.opencode/skills`.
 - Host-local OpenCode auth, provider state, and MCP credentials stay in `~/.config/opencode`.
