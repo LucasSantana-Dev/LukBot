@@ -339,8 +339,6 @@ runtime with the official `github-mcp-server` binary and aligns Codex,
 OpenCode, and Cursor wrappers around `gh auth token` with env fallback.
 Bundle-size PR checks export `YOUTUBE_DL_SKIP_DOWNLOAD=true` to keep
 `youtube-dl-exec` postinstall deterministic under GitHub API rate limits.
-For deploy lock/checkout/runtime incident recovery, use:
-`.cursor/skills/lucky-deploy-recovery/SKILL.md`.
 
 ### Remote Deploy (No SSH)
 
@@ -387,6 +385,9 @@ the operator diagnostics:
 
 The diagnostics output is sanitized and includes Lucky container state, backend
 log tail, and auth health/OAuth checks.
+
+For deploy lock/checkout/runtime incident recovery, use:
+`.cursor/skills/lucky-deploy-recovery/SKILL.md`.
 
 Vercel note: `vercel.json` runs `npm run db:generate` before `build:shared` and `build:frontend` to ensure Prisma generated client files are present during cloud builds.
 For hosted frontend deployments, set `VITE_API_BASE_URL` to your backend API origin
@@ -456,7 +457,7 @@ Discord Developer Portal URL mapping for this deployment:
 See `.env.example` for all available options. Key variables:
 
 | Variable | Required | Description |
-|----------|----------|-------------|
+|----------|----------|-----------|
 | `DISCORD_TOKEN` | Yes | Discord bot token (bot runtime + backend guild membership checks) |
 | `CLIENT_ID` | Yes | Discord application client ID |
 | `DATABASE_URL` | Yes | PostgreSQL connection string |
